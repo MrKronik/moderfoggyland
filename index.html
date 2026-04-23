@@ -29,7 +29,6 @@
             margin: 0 auto;
         }
 
-        /* карточка в тёмно-лесном стиле */
         .moderator-card {
             background: rgba(18, 34, 25, 0.85);
             backdrop-filter: blur(18px);
@@ -140,6 +139,45 @@
             gap: 0.2rem;
         }
 
+        /* Стили для радио-кнопок */
+        .radio-group {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-top: 0.2rem;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            background: rgba(20, 35, 22, 0.6);
+            border: 1.5px solid #2f4f35;
+            transition: all 0.2s;
+        }
+
+        .radio-option:hover {
+            border-color: #5a9e4a;
+            background: rgba(30, 50, 30, 0.7);
+        }
+
+        .radio-option input[type="radio"] {
+            width: 1.1rem;
+            height: 1.1rem;
+            accent-color: #4caf50;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .radio-option.selected {
+            border-color: #7cc96b;
+            background: rgba(40, 70, 35, 0.8);
+            box-shadow: 0 0 8px rgba(80, 160, 60, 0.3);
+        }
+
         button {
             width: 100%;
             padding: 0.95rem;
@@ -200,18 +238,16 @@
             display: none;
         }
 
-        hr {
-            border-color: #2b482b;
-            margin: 0.5rem 0 1.2rem;
-            opacity: 0.5;
-        }
-
         @media (max-width: 500px) {
             .moderator-card {
                 padding: 1.8rem 1.3rem;
             }
             h1 {
                 font-size: 1.9rem;
+            }
+            .radio-group {
+                flex-direction: column;
+                gap: 0.8rem;
             }
         }
     </style>
@@ -226,7 +262,9 @@
             <div class="badge">⚔️ Набор модераторов</div>
         </div>
 
+        <!-- ВАШ КОД FORMSPREE -->
         <form id="moderatorForm" action="https://formspree.io/f/mojyyqzk" method="POST">
+            
             <!-- Имя -->
             <div class="form-group">
                 <label>🧑‍💼 Ваше реальное имя</label>
@@ -245,7 +283,7 @@
                 <input type="text" name="telegram" placeholder="@foggyland" required>
             </div>
 
-            <!-- Возраст (с 13 лет) -->
+            <!-- Возраст -->
             <div class="form-group">
                 <label>🎂 Возраст <span style="font-weight: 400; color:#b0cfaa;">(принимаем с 13 лет)</span></label>
                 <div class="age-row">
@@ -254,7 +292,29 @@
                     </select>
                     <span class="age-note">✅ от 13 лет</span>
                 </div>
-                <input type="hidden" name="age_confirmed" value="true">
+            </div>
+
+            <!-- НОВЫЙ ВОПРОС: Отношение к читам (ОБЯЗАТЕЛЬНЫЙ) -->
+            <div class="form-group">
+                <label>🚫 Как вы относитесь к читам? <span style="color: #ff8a80;">*</span></label>
+                <div class="radio-group" id="cheatsRadioGroup">
+                    <label class="radio-option">
+                        <input type="radio" name="attitude_to_cheats" value="resolutely_against" required>
+                        <span>❌ Категорически против</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="attitude_to_cheats" value="mostly_against" required>
+                        <span>⚠️ В основном против</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="attitude_to_cheats" value="neutral" required>
+                        <span>😐 Нейтрально</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="attitude_to_cheats" value="sometimes_use" required>
+                        <span>🤫 Иногда использую</span>
+                    </label>
+                </div>
             </div>
 
             <!-- Опыт модерирования -->
@@ -263,7 +323,7 @@
                 <textarea name="experience" placeholder="Опишите, были ли вы модератором на других проектах, что умеете..."></textarea>
             </div>
 
-            <!-- Почему именно вы -->
+            <!-- Мотивация -->
             <div class="form-group">
                 <label>💬 Почему вы хотите стать модератором FoggyLand?</label>
                 <textarea name="motivation" placeholder="Расскажите, почему выбрали наш сервер и что можете дать сообществу..." required></textarea>
@@ -284,17 +344,16 @@
 
         <div class="footer-note">
             <span>🔞 Только с 13 лет · конфиденциально</span>
-            <span>📋 Каждая заявка рассматривается администрацией сервера</span>
+            <span>📋 Каждая заявка рассматривается администрацией</span>
         </div>
     </div>
 </div>
 
 <script>
     (function() {
-        // --- генерация возраста от 13 до 40 лет (можно шире) ---
+        // --- Генерация возраста от 13 до 45+ ---
         const ageSelect = document.getElementById('ageSelect');
         if (ageSelect) {
-            // Очищаем и заполняем варианты, начиная с 13
             ageSelect.innerHTML = '<option value="" disabled selected>Выберите возраст</option>';
             for (let i = 13; i <= 45; i++) {
                 const option = document.createElement('option');
@@ -302,11 +361,29 @@
                 option.textContent = i + (i === 13 ? ' лет (минимальный)' : ' лет');
                 ageSelect.appendChild(option);
             }
-            // добавим опцию "старше 45", чтобы не дискриминировать
             const olderOption = document.createElement('option');
             olderOption.value = '46+';
             olderOption.textContent = '46+ лет';
             ageSelect.appendChild(olderOption);
+        }
+
+        // --- Подсветка выбранной радио-кнопки ---
+        const radioGroup = document.getElementById('cheatsRadioGroup');
+        if (radioGroup) {
+            const radioOptions = radioGroup.querySelectorAll('.radio-option');
+            const radioInputs = radioGroup.querySelectorAll('input[type="radio"]');
+
+            radioInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    // Убираем класс selected со всех
+                    radioOptions.forEach(opt => opt.classList.remove('selected'));
+                    // Добавляем класс selected к родительской метке
+                    const parentLabel = this.closest('.radio-option');
+                    if (parentLabel) {
+                        parentLabel.classList.add('selected');
+                    }
+                });
+            });
         }
 
         // --- Обработка формы ---
@@ -316,23 +393,19 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // Дополнительная проверка возраста (на всякий случай)
+            // Проверка возраста
             const ageValue = ageSelect.value;
             if (!ageValue) {
                 alert('Пожалуйста, укажите возраст (принимаем с 13 лет).');
                 return;
             }
-
             const ageNumber = parseInt(ageValue, 10);
             if (!isNaN(ageNumber) && ageNumber < 13) {
                 alert('К сожалению, подать заявку можно только с 13 лет.');
                 return;
             }
-            // если выбрано "46+", это допустимо, пропускаем
 
             const formData = new FormData(form);
-            
-            // Можно добавить скрытое поле с датой, если нужно
             formData.append('submitted_at', new Date().toISOString());
 
             try {
@@ -343,16 +416,11 @@
                 });
 
                 if (response.ok) {
-                    // Прячем форму, показываем успех
                     form.classList.add('hidden');
                     successDiv.classList.remove('hidden');
-                    form.reset(); // очищаем поля (на случай если покажут снова)
-                    // Прокрутка к успешному сообщению
+                    form.reset();
                     successDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 } else {
-                    // Ошибка сервера (например Formspree ограничения)
-                    const errorText = await response.text().catch(() => 'Unknown error');
-                    console.warn('Ошибка отправки:', response.status, errorText);
                     alert('⚠️ Ошибка отправки. Проверьте данные или попробуйте позже.');
                 }
             } catch (networkError) {
@@ -360,9 +428,6 @@
                 alert('🌐 Ошибка сети. Проверьте подключение к интернету.');
             }
         });
-
-        // Чтобы при случайном сбросе можно было вернуть форму (маленькое удобство)
-        // Но не обязательно, оставим как есть.
     })();
 </script>
 </body>
