@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Заявка на модератора | FoggyLand</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: radial-gradient(circle at 20% 30%, #1a3b2e, #0b1f17);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            margin: 0;
+            color: #d0e6d5;
+        }
+
+        .page-wrapper {
+            width: 100%;
+            max-width: 620px;
+            margin: 0 auto;
+        }
+
+        /* карточка в тёмно-лесном стиле */
+        .moderator-card {
+            background: rgba(18, 34, 25, 0.85);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-radius: 2.5rem;
+            padding: 2.2rem 2rem;
+            box-shadow: 0 30px 50px -20px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(90, 150, 100, 0.3);
+            border: 1px solid rgba(80, 140, 90, 0.25);
+            transition: all 0.2s ease;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            margin-bottom: 0.3rem;
+            background: linear-gradient(180deg, #c7f0c0 0%, #6fa86b 90%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 10px rgba(0, 80, 20, 0.5);
+        }
+
+        .badge {
+            text-align: center;
+            margin-bottom: 1.8rem;
+            font-weight: 500;
+            font-size: 1rem;
+            background: rgba(50, 80, 50, 0.4);
+            display: inline-block;
+            padding: 0.4rem 1.5rem;
+            border-radius: 3rem;
+            margin-left: auto;
+            margin-right: auto;
+            width: fit-content;
+            backdrop-filter: blur(5px);
+            color: #c7e9c0;
+            border: 1px solid #3c6b40;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #b9ddb0;
+            font-size: 0.95rem;
+            letter-spacing: 0.2px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 0.85rem 1.2rem;
+            background: rgba(10, 20, 12, 0.7);
+            border: 1.5px solid #2f4f35;
+            border-radius: 1.3rem;
+            font-size: 1rem;
+            color: #e2f0da;
+            font-family: inherit;
+            transition: all 0.25s ease;
+            backdrop-filter: blur(4px);
+            outline: none;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #5e7e62;
+            opacity: 0.8;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: #7cc96b;
+            box-shadow: 0 0 0 3px rgba(100, 180, 70, 0.35);
+            background: rgba(14, 28, 18, 0.8);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 90px;
+        }
+
+        .age-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .age-row select {
+            width: auto;
+            min-width: 100px;
+            flex: 1;
+        }
+
+        .age-note {
+            font-size: 0.85rem;
+            color: #a2c0a0;
+            display: flex;
+            align-items: center;
+            gap: 0.2rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.95rem;
+            background: linear-gradient(125deg, #1e4a24, #297a32);
+            color: #f0ffe6;
+            border: none;
+            border-radius: 1.4rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 8px 18px -6px #0b2b0b;
+            margin-top: 0.5rem;
+            border: 1px solid #3b6b34;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3rem;
+        }
+
+        button:hover {
+            background: linear-gradient(125deg, #235f2b, #368d3e);
+            transform: scale(0.98);
+            box-shadow: 0 10px 20px -6px #0f3a0f;
+            border-color: #5aa34a;
+        }
+
+        .footer-note {
+            margin-top: 1.8rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #7f9f7a;
+            border-top: 1px solid #284a2c;
+            padding-top: 1.4rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .success-message {
+            background: rgba(30, 55, 30, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1.5px solid #4f9e4a;
+            padding: 1.3rem;
+            border-radius: 1.5rem;
+            text-align: center;
+            margin-top: 1.8rem;
+            color: #daf7d0;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        hr {
+            border-color: #2b482b;
+            margin: 0.5rem 0 1.2rem;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 500px) {
+            .moderator-card {
+                padding: 1.8rem 1.3rem;
+            }
+            h1 {
+                font-size: 1.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="page-wrapper">
+    <div class="moderator-card">
+        <h1>
+            <span>🌲</span> FoggyLand <span>🌫️</span>
+        </h1>
+        <div style="text-align: center;">
+            <div class="badge">⚔️ Набор модераторов</div>
+        </div>
+
+        <form id="moderatorForm" action="https://formspree.io/f/mojyyqzk" method="POST">
+            <!-- Имя -->
+            <div class="form-group">
+                <label>🧑‍💼 Ваше реальное имя</label>
+                <input type="text" name="real_name" placeholder="Алексей" required autocomplete="name">
+            </div>
+
+            <!-- Ник в Minecraft -->
+            <div class="form-group">
+                <label>⛏️ Никнейм Minecraft</label>
+                <input type="text" name="minecraft_nick" placeholder="FoggyKeeper" required>
+            </div>
+
+            <!-- Telegram -->
+            <div class="form-group">
+                <label>📬 Telegram (username)</label>
+                <input type="text" name="telegram" placeholder="@foggymod" required>
+            </div>
+
+            <!-- Возраст (с 13 лет) -->
+            <div class="form-group">
+                <label>🎂 Возраст <span style="font-weight: 400; color:#b0cfaa;">(принимаем с 13 лет)</span></label>
+                <div class="age-row">
+                    <select name="age" id="ageSelect" required>
+                        <option value="" disabled selected>Выберите возраст</option>
+                    </select>
+                    <span class="age-note">✅ от 13 лет</span>
+                </div>
+                <input type="hidden" name="age_confirmed" value="true">
+            </div>
+
+            <!-- Опыт модерирования -->
+            <div class="form-group">
+                <label>🛡️ Опыт модерирования / администрирования</label>
+                <textarea name="experience" placeholder="Опишите, были ли вы модератором на других проектах, что умеете..."></textarea>
+            </div>
+
+            <!-- Почему именно вы -->
+            <div class="form-group">
+                <label>💬 Почему вы хотите стать модератором FoggyLand?</label>
+                <textarea name="motivation" placeholder="Расскажите, почему выбрали наш сервер и что можете дать сообществу..." required></textarea>
+            </div>
+
+            <button type="submit">
+                <span>📩</span> Отправить заявку <span>✨</span>
+            </button>
+        </form>
+
+        <!-- Сообщение об успешной отправке -->
+        <div id="successBlock" class="success-message hidden">
+            <span style="font-size: 1.4rem;">🎉</span>
+            <strong>Заявка принята!</strong>
+            <span>Мы свяжемся с вами в Telegram в течение 2–3 дней.</span>
+            <span style="font-size: 0.8rem; opacity: 0.9;">Проверяйте личные сообщения.</span>
+        </div>
+
+        <div class="footer-note">
+            <span>🔞 Только с 13 лет · конфиденциально</span>
+            <span>📋 Каждая заявка рассматривается администрацией</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // --- генерация возраста от 13 до 40 лет (можно шире) ---
+        const ageSelect = document.getElementById('ageSelect');
+        if (ageSelect) {
+            // Очищаем и заполняем варианты, начиная с 13
+            ageSelect.innerHTML = '<option value="" disabled selected>Выберите возраст</option>';
+            for (let i = 13; i <= 45; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = i + (i === 13 ? ' лет (минимальный)' : ' лет');
+                ageSelect.appendChild(option);
+            }
+            // добавим опцию "старше 45", чтобы не дискриминировать
+            const olderOption = document.createElement('option');
+            olderOption.value = '46+';
+            olderOption.textContent = '46+ лет';
+            ageSelect.appendChild(olderOption);
+        }
+
+        // --- Обработка формы ---
+        const form = document.getElementById('moderatorForm');
+        const successDiv = document.getElementById('successBlock');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Дополнительная проверка возраста (на всякий случай)
+            const ageValue = ageSelect.value;
+            if (!ageValue) {
+                alert('Пожалуйста, укажите возраст (принимаем с 13 лет).');
+                return;
+            }
+
+            const ageNumber = parseInt(ageValue, 10);
+            if (!isNaN(ageNumber) && ageNumber < 13) {
+                alert('К сожалению, подать заявку можно только с 13 лет.');
+                return;
+            }
+            // если выбрано "46+", это допустимо, пропускаем
+
+            const formData = new FormData(form);
+            
+            // Можно добавить скрытое поле с датой, если нужно
+            formData.append('submitted_at', new Date().toISOString());
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (response.ok) {
+                    // Прячем форму, показываем успех
+                    form.classList.add('hidden');
+                    successDiv.classList.remove('hidden');
+                    form.reset(); // очищаем поля (на случай если покажут снова)
+                    // Прокрутка к успешному сообщению
+                    successDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    // Ошибка сервера (например Formspree ограничения)
+                    const errorText = await response.text().catch(() => 'Unknown error');
+                    console.warn('Ошибка отправки:', response.status, errorText);
+                    alert('⚠️ Ошибка отправки. Проверьте данные или попробуйте позже.');
+                }
+            } catch (networkError) {
+                console.error('Сетевая ошибка:', networkError);
+                alert('🌐 Ошибка сети. Проверьте подключение к интернету.');
+            }
+        });
+
+        // Чтобы при случайном сбросе можно было вернуть форму (маленькое удобство)
+        // Но не обязательно, оставим как есть.
+    })();
+</script>
+</body>
+</html>
