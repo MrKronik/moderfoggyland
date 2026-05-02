@@ -1,8 +1,6 @@
 import os
 import json
 import uuid
-import threading
-import requests
 from datetime import datetime
 from flask import Flask, request, jsonify
 import telebot
@@ -17,6 +15,8 @@ ADMIN_IDS = [5145474067]  # ❗ ЗАМЕНИ НА СВОЙ ID
 DATA_FILE = "applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
+# URL твоего сервера на Render (подставь свой, если отличается)
+RENDER_URL = "https://moderfoggyland.onrender.com"
 
 # ========== ХРАНИЛИЩЕ ==========
 def load_json(filename, default=None):
@@ -37,8 +37,9 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 @app.route("/")
 def home():
-    return "✅ Бот работает!"
+    return "✅ Бот работает! Вебхуки активны."
 
+# Маршрут для Formspree (приём заявок)
 @app.route("/webhook", methods=["POST"])
 def formspree_webhook():
     data = request.get_json(force=True) if request.is_json else request.form
@@ -75,45 +76,49 @@ def formspree_webhook():
     applications.append(new_app)
     save_json(DATA_FILE, applications)
 
-    # Отправляем подтверждение заявителю
+    # Сообщение заявителю
     try:
-        bot.send_message(
-            chat_id,
-            f"Привет {real_name}! Твоя заявка рассмотрится в течении недели. Ожидай."
-        )
+        bot.send_message(chat_id,
+                         f"Привет {real_name}! Твоя заявка рассмотрится в течении недели. Ожидай.")
     except Exception as e:
         print(f"Ошибка отправки заявителю: {e}")
 
-    # Уведомляем админов
+    # Сообщение админам
     for admin_id in ADMIN_IDS:
         try:
-            bot.send_message(
-                admin_id,
-                f"🆕 Новая заявка #{new_app['id']} от {real_name}\n"
-                f"Ник: {minecraft_nick}\nTG: @{telegram_user}"
-            )
+            bot.send_message(admin_id,
+                             f"🆕 Новая заявка #{new_app['id']} от {real_name}\n"
+                             f"Ник: {minecraft_nick}\nTG: @{telegram_user}")
         except:
             pass
 
     return jsonify({"status": "ok", "app_id": new_app["id"]})
 
-# ========== TELEGRAM БОТ ==========
+# Маршрут для Telegram (приём команд)
+@app.route("/telegram", methods=["POST"])
+def telegram_webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return "OK"
+    else:
+        return "Bad request", 400
+
+# ========== ОБРАБОТЧИКИ КОМАНД ==========
 @bot.message_handler(commands=['start'])
 def start(message):
     chat_id = message.chat.id
     code = f"FL-{uuid.uuid4().hex[:6].upper()}"
-
     pending_codes = load_json(PENDING_CODES_FILE)
     pending_codes[code] = chat_id
     save_json(PENDING_CODES_FILE, pending_codes)
 
-    bot.reply_to(
-        message,
-        f"🌲 Привет! Добро пожаловать в FoggyLand!\n\n"
-        f"Твой код подтверждения: `{code}`\n\n"
-        f"Скопируй его и вставь в форму заявки.",
-        parse_mode="Markdown"
-    )
+    bot.reply_to(message,
+                 f"🌲 Привет! Добро пожаловать в FoggyLand!\n\n"
+                 f"Твой код подтверждения: `{code}`\n\n"
+                 f"Скопируй его и вставь в форму заявки.",
+                 parse_mode="Markdown")
 
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
@@ -140,11 +145,9 @@ def callback_handler(call):
     if call.data == "list_all":
         show_list(call, applications)
     elif call.data == "list_pending":
-        pending = [a for a in applications if a["status"] == "pending"]
-        show_list(call, pending)
+        show_list(call, [a for a in applications if a["status"] == "pending"])
     elif call.data == "list_accepted":
-        accepted = [a for a in applications if a["status"] == "accepted"]
-        show_list(call, accepted)
+        show_list(call, [a for a in applications if a["status"] == "accepted"])
     elif call.data.startswith("view_"):
         app_id = int(call.data.split("_")[1])
         app_data = next((a for a in applications if a["id"] == app_id), None)
@@ -172,12 +175,10 @@ def show_list(call, apps):
     for app_data in apps[:10]:
         emoji = "✅" if app_data["status"] == "accepted" else "⏳"
         text += f"{emoji} #{app_data['id']} | {app_data['real_name']} | {app_data['minecraft_nick']}\n"
-        keyboard.add(
-            types.InlineKeyboardButton(
-                f"{emoji} #{app_data['id']} - {app_data['real_name']}",
-                callback_data=f"view_{app_data['id']}"
-            )
-        )
+        keyboard.add(types.InlineKeyboardButton(
+            f"{emoji} #{app_data['id']} - {app_data['real_name']}",
+            callback_data=f"view_{app_data['id']}"
+        ))
     keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="back_to_admin"))
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
@@ -197,7 +198,6 @@ def show_detail(call, app_data):
     if app_data["status"] == "pending":
         keyboard.add(types.InlineKeyboardButton("✅ ПРИНЯТЬ", callback_data=f"accept_{app_data['id']}"))
     keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="list_pending"))
-
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
 def accept_app(call, app_id, applications):
@@ -209,39 +209,34 @@ def accept_app(call, app_id, applications):
     app_data["status"] = "accepted"
     save_json(DATA_FILE, applications)
 
-    # Отправляем уведомление принятому
     try:
-        bot.send_message(
-            app_data["chat_id"],
-            f"Привет {app_data['real_name']}!\n"
-            f"Твоя заявка на модератора была принята!\n"
-            f"И твоего модератора уже выдали!\n"
-            f"Ваш ник: {app_data['minecraft_nick']}"
-        )
-        bot.edit_message_text(
-            f"✅ Заявка #{app_id} принята! Уведомление отправлено.",
-            call.message.chat.id,
-            call.message.message_id
-        )
+        bot.send_message(app_data["chat_id"],
+                         f"Привет {app_data['real_name']}!\n"
+                         f"Твоя заявка на модератора была принята!\n"
+                         f"И твоего модератора уже выдали!\n"
+                         f"Ваш ник: {app_data['minecraft_nick']}")
+        bot.edit_message_text(f"✅ Заявка #{app_id} принята! Уведомление отправлено.",
+                              call.message.chat.id, call.message.message_id)
     except Exception as e:
-        bot.edit_message_text(
-            f"✅ Заявка #{app_id} принята!\n⚠️ Ошибка отправки: {e}",
-            call.message.chat.id,
-            call.message.message_id
-        )
+        bot.edit_message_text(f"✅ Заявка #{app_id} принята!\n⚠️ Ошибка отправки: {e}",
+                              call.message.chat.id, call.message.message_id)
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    # 1. Принудительно удаляем webhook (даже если уже удалён – не страшно)
+    # 1. Удаляем все прошлые вебхуки
     try:
-        requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteWebhook")
-        print("🧹 Webhook удалён")
+        bot.remove_webhook()
+        print("🧹 Старый webhook удалён")
     except Exception as e:
-        print(f"⚠️ Ошибка удаления webhook: {e}")
+        print(f"⚠️ Не удалось удалить webhook: {e}")
 
-    # 2. Запускаем polling
-    threading.Thread(target=bot.polling, kwargs={"non_stop": True, "timeout": 60}, daemon=True).start()
-    print("✅ Бот запущен (polling)")
+    # 2. Ставим новый вебхук на /telegram
+    webhook_url = f"{RENDER_URL}/telegram"
+    try:
+        bot.set_webhook(url=webhook_url)
+        print(f"✅ Webhook установлен на {webhook_url}")
+    except Exception as e:
+        print(f"❌ Ошибка установки webhook: {e}")
 
-    # 3. Flask
+    # 3. Запуск Flask (без polling!)
     app.run(host="0.0.0.0", port=PORT)
