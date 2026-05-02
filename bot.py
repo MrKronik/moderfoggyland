@@ -231,16 +231,18 @@ def accept_app(call, app_id, applications):
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    # Сначала удаляем вебхук (если остался от прошлых попыток)
+    # Принудительно удаляем вебхук через прямую HTTP-ссылку
+    import requests
     try:
-        bot.remove_webhook()
-        print("🧹 Вебхук удалён")
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteWebhook"
+        resp = requests.get(url)
+        print("🧹 Webhook удалён:", resp.json())
     except Exception as e:
-        print(f"⚠️ Не удалось удалить вебхук: {e}")
-
-    # Запускаем polling в отдельном потоке
+        print("⚠️ Не удалось удалить webhook:", e)
+    
+    # Теперь запускаем polling
     threading.Thread(target=bot.polling, kwargs={"non_stop": True, "timeout": 60}, daemon=True).start()
-    print("✅ Бот запущен в потоке")
+    print("✅ Бот запущен (polling)")
 
-    # Запускаем Flask
+    # Flask
     app.run(host="0.0.0.0", port=PORT)
