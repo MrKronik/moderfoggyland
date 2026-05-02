@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import asyncio
+import requests
 from datetime import datetime
 from flask import Flask, request, jsonify
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -16,7 +17,7 @@ ADMIN_IDS = [5145474067]  # ❗СВОЙ ID
 DATA_FILE = "applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
-RENDER_URL = os.environ.get("RENDER_URL", "https://moderfoggyland.onrender.com")
+RENDER_URL = "https://moderfoggyland.onrender.com"  # ❗СВОЙ URL
 
 # ========== ХРАНИЛИЩЕ ==========
 def load_json(filename, default=None):
@@ -37,7 +38,7 @@ telegram_app = None
 
 @app.route("/")
 def home():
-    return "✅ Бот работает!"
+    return "✅ Бот работает! Webhook активен."
 
 @app.route("/telegram", methods=["POST"])
 async def telegram_webhook():
@@ -227,22 +228,29 @@ async def accept_app(query, app_id, applications):
         await query.edit_message_text(f"⚠️ Ошибка: {e}")
 
 # ========== ЗАПУСК ==========
-async def setup_webhook():
-    global telegram_app
+if __name__ == "__main__":
+    # Устанавливаем webhook через прямой HTTP-запрос
+    webhook_url = f"{RENDER_URL}/telegram"
+    set_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook?url={webhook_url}"
+    
+    try:
+        response = requests.get(set_url)
+        print(f"🔗 Webhook установлен: {response.json()}")
+    except Exception as e:
+        print(f"❌ Ошибка webhook: {e}")
+
+    # Создаём приложение Telegram
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
     telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
     telegram_app.add_handler(CommandHandler("start", start))
     telegram_app.add_handler(CommandHandler("admin", admin_panel))
     telegram_app.add_handler(CallbackQueryHandler(button_handler))
     
-    await telegram_app.initialize()
-    await telegram_app.bot.set_webhook(url=f"{RENDER_URL}/telegram")
-    print(f"✅ Webhook установлен: {RENDER_URL}/telegram")
-
-if __name__ == "__main__":
-    # Устанавливаем webhook при старте
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(setup_webhook())
+    loop.run_until_complete(telegram_app.initialize())
     
-    # Запускаем Flask (без gunicorn для теста)
+    print("✅ Бот готов к работе!")
+    
+    # Запускаем Flask
     app.run(host="0.0.0.0", port=PORT)
