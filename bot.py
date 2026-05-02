@@ -231,6 +231,13 @@ def accept_app(call, app_id, applications):
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
+    # Сначала удаляем вебхук (если остался от прошлых попыток)
+    try:
+        bot.remove_webhook()
+        print("🧹 Вебхук удалён")
+    except Exception as e:
+        print(f"⚠️ Не удалось удалить вебхук: {e}")
+
     # Запускаем polling в отдельном потоке
     threading.Thread(target=bot.polling, kwargs={"non_stop": True, "timeout": 60}, daemon=True).start()
     print("✅ Бот запущен в потоке")
