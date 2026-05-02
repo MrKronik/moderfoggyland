@@ -1,23 +1,21 @@
 import os
 import json
 import uuid
-import asyncio
-import requests
+import threading
 from datetime import datetime
 from flask import Flask, request, jsonify
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+import telebot
+from telebot import types
 
 # ========== КОНФИГУРАЦИЯ ==========
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise ValueError("TELEGRAM_TOKEN не установлен!")
 
-ADMIN_IDS = [5145474067]  # ❗СВОЙ ID
+ADMIN_IDS = [5145474067]  # ❗ ЗАМЕНИ НА СВОЙ ID
 DATA_FILE = "applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
-RENDER_URL = "https://moderfoggyland.onrender.com"  # ❗СВОЙ URL
 
 # ========== ХРАНИЛИЩЕ ==========
 def load_json(filename, default=None):
@@ -34,43 +32,33 @@ def save_json(filename, data):
 
 # ========== FLASK ==========
 app = Flask(__name__)
-telegram_app = None
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 @app.route("/")
 def home():
-    return "✅ Бот работает! Webhook активен."
-
-@app.route("/telegram", methods=["POST"])
-async def telegram_webhook():
-    global telegram_app
-    if telegram_app:
-        data = request.get_json(force=True)
-        update = Update.de_json(data, telegram_app.bot)
-        await telegram_app.process_update(update)
-    return "ok"
+    return "✅ Бот работает!"
 
 @app.route("/webhook", methods=["POST"])
 def formspree_webhook():
-    global telegram_app
     data = request.get_json(force=True) if request.is_json else request.form
-    
+
     code = data.get("verification_code", "").strip().upper()
     pending_codes = load_json(PENDING_CODES_FILE)
-    
+
     if not code or code not in pending_codes:
         return jsonify({"error": "Неверный код подтверждения"}), 400
-    
+
     chat_id = pending_codes.pop(code)
     save_json(PENDING_CODES_FILE, pending_codes)
-    
+
     real_name = data.get("real_name", "Игрок")
     minecraft_nick = data.get("minecraft_nick", "")
     telegram_user = data.get("telegram", "")
     experience = data.get("experience", "")
     motivation = data.get("motivation", "")
-    
+
     applications = load_json(DATA_FILE, [])
-    
+
     new_app = {
         "id": len(applications) + 1,
         "chat_id": chat_id,
@@ -82,176 +70,170 @@ def formspree_webhook():
         "status": "pending",
         "submitted_at": datetime.now().isoformat()
     }
-    
+
     applications.append(new_app)
     save_json(DATA_FILE, applications)
-    
-    if telegram_app and telegram_app.bot:
+
+    # Отправляем подтверждение заявителю
+    try:
+        bot.send_message(
+            chat_id,
+            f"Привет {real_name}! Твоя заявка рассмотрится в течении недели. Ожидай."
+        )
+    except Exception as e:
+        print(f"Ошибка отправки заявителю: {e}")
+
+    # Уведомляем админов
+    for admin_id in ADMIN_IDS:
         try:
-            asyncio.new_event_loop().run_until_complete(
-                telegram_app.bot.send_message(
-                    chat_id=chat_id,
-                    text=f"Привет {real_name}! Твоя заявка рассмотрится в течении недели. Ожидай."
-                )
+            bot.send_message(
+                admin_id,
+                f"🆕 Новая заявка #{new_app['id']} от {real_name}\n"
+                f"Ник: {minecraft_nick}\nTG: @{telegram_user}"
             )
-        except Exception as e:
-            print(f"Ошибка отправки: {e}")
-        
-        for admin_id in ADMIN_IDS:
-            try:
-                asyncio.new_event_loop().run_until_complete(
-                    telegram_app.bot.send_message(
-                        chat_id=admin_id,
-                        text=f"🆕 Новая заявка #{new_app['id']} от {real_name}\nНик: {minecraft_nick}\nTG: @{telegram_user}"
-                    )
-                )
-            except:
-                pass
-    
+        except:
+            pass
+
     return jsonify({"status": "ok", "app_id": new_app["id"]})
 
-# ========== TELEGRAM BOT ==========
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
+# ========== TELEGRAM БОТ ==========
+@bot.message_handler(commands=['start'])
+def start(message):
+    chat_id = message.chat.id
     code = f"FL-{uuid.uuid4().hex[:6].upper()}"
-    
+
     pending_codes = load_json(PENDING_CODES_FILE)
     pending_codes[code] = chat_id
     save_json(PENDING_CODES_FILE, pending_codes)
-    
-    await update.message.reply_text(
+
+    bot.reply_to(
+        message,
         f"🌲 Привет! Добро пожаловать в FoggyLand!\n\n"
         f"Твой код подтверждения: `{code}`\n\n"
         f"Скопируй его и вставь в форму заявки.",
         parse_mode="Markdown"
     )
 
-async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMIN_IDS:
-        await update.message.reply_text("⛔ Нет доступа.")
+@bot.message_handler(commands=['admin'])
+def admin_panel(message):
+    if message.chat.id not in ADMIN_IDS:
+        bot.reply_to(message, "⛔ Нет доступа.")
         return
-    
-    keyboard = [
-        [InlineKeyboardButton("📋 Все заявки", callback_data="list_all")],
-        [InlineKeyboardButton("⏳ Ожидающие", callback_data="list_pending")],
-        [InlineKeyboardButton("✅ Принятые", callback_data="list_accepted")]
-    ]
-    
-    await update.message.reply_text(
-        "🎛 Админ-панель FoggyLand",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    if query.from_user.id not in ADMIN_IDS:
-        await query.edit_message_text("⛔ Нет доступа.")
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(
+        types.InlineKeyboardButton("📋 Все заявки", callback_data="list_all"),
+        types.InlineKeyboardButton("⏳ Ожидающие", callback_data="list_pending"),
+        types.InlineKeyboardButton("✅ Принятые", callback_data="list_accepted")
+    )
+    bot.send_message(message.chat.id, "🎛 Админ-панель FoggyLand", reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback_handler(call):
+    if call.from_user.id not in ADMIN_IDS:
+        bot.answer_callback_query(call.id, "⛔ Нет доступа.")
         return
-    
+
     applications = load_json(DATA_FILE, [])
-    
-    if query.data == "list_all":
-        await show_list(query, applications)
-    elif query.data == "list_pending":
-        await show_list(query, [a for a in applications if a["status"] == "pending"])
-    elif query.data == "list_accepted":
-        await show_list(query, [a for a in applications if a["status"] == "accepted"])
-    elif query.data.startswith("view_"):
-        app_id = int(query.data.split("_")[1])
+
+    if call.data == "list_all":
+        show_list(call, applications)
+    elif call.data == "list_pending":
+        pending = [a for a in applications if a["status"] == "pending"]
+        show_list(call, pending)
+    elif call.data == "list_accepted":
+        accepted = [a for a in applications if a["status"] == "accepted"]
+        show_list(call, accepted)
+    elif call.data.startswith("view_"):
+        app_id = int(call.data.split("_")[1])
         app_data = next((a for a in applications if a["id"] == app_id), None)
         if app_data:
-            await show_detail(query, app_data)
-    elif query.data.startswith("accept_"):
-        app_id = int(query.data.split("_")[1])
-        await accept_app(query, app_id, applications)
-    elif query.data == "back_to_admin":
-        keyboard = [
-            [InlineKeyboardButton("📋 Все заявки", callback_data="list_all")],
-            [InlineKeyboardButton("⏳ Ожидающие", callback_data="list_pending")],
-            [InlineKeyboardButton("✅ Принятые", callback_data="list_accepted")]
-        ]
-        await query.edit_message_text("🎛 Админ-панель", reply_markup=InlineKeyboardMarkup(keyboard))
+            show_detail(call, app_data)
+    elif call.data.startswith("accept_"):
+        app_id = int(call.data.split("_")[1])
+        accept_app(call, app_id, applications)
+    elif call.data == "back_to_admin":
+        keyboard = types.InlineKeyboardMarkup()
+        keyboard.add(
+            types.InlineKeyboardButton("📋 Все заявки", callback_data="list_all"),
+            types.InlineKeyboardButton("⏳ Ожидающие", callback_data="list_pending"),
+            types.InlineKeyboardButton("✅ Принятые", callback_data="list_accepted")
+        )
+        bot.edit_message_text("🎛 Админ-панель", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
-async def show_list(query, apps):
+def show_list(call, apps):
     if not apps:
-        await query.edit_message_text("📭 Заявок нет.")
+        bot.edit_message_text("📭 Заявок нет.", call.message.chat.id, call.message.message_id)
         return
-    
+
     text = "📊 Заявки:\n\n"
-    keyboard = []
-    
+    keyboard = types.InlineKeyboardMarkup()
     for app_data in apps[:10]:
         emoji = "✅" if app_data["status"] == "accepted" else "⏳"
         text += f"{emoji} #{app_data['id']} | {app_data['real_name']} | {app_data['minecraft_nick']}\n"
-        keyboard.append([InlineKeyboardButton(
-            f"{emoji} #{app_data['id']} - {app_data['real_name']}",
-            callback_data=f"view_{app_data['id']}"
-        )])
-    
-    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="back_to_admin")])
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        keyboard.add(
+            types.InlineKeyboardButton(
+                f"{emoji} #{app_data['id']} - {app_data['real_name']}",
+                callback_data=f"view_{app_data['id']}"
+            )
+        )
+    keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="back_to_admin"))
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
-async def show_detail(query, app_data):
+def show_detail(call, app_data):
     text = (
         f"📝 Заявка #{app_data['id']}\n\n"
         f"👤 Имя: {app_data['real_name']}\n"
         f"⛏ Ник: {app_data['minecraft_nick']}\n"
         f"📬 Telegram: {app_data.get('telegram_user', '-')}\n"
-        f"📊 Статус: {'✅ Принята' if app_data['status'] == 'accepted' else '⏳ Ожидает'}"
+        f"📅 Дата: {app_data.get('submitted_at', '-')[:10]}\n"
+        f"📊 Статус: {'✅ Принята' if app_data['status'] == 'accepted' else '⏳ Ожидает'}\n\n"
+        f"🛡 Опыт: {app_data.get('experience', '-')}\n"
+        f"💬 Мотивация: {app_data.get('motivation', '-')}"
     )
-    
-    keyboard = []
-    if app_data["status"] == "pending":
-        keyboard.append([InlineKeyboardButton("✅ ПРИНЯТЬ", callback_data=f"accept_{app_data['id']}")])
-    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="list_pending")])
-    
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def accept_app(query, app_id, applications):
+    keyboard = types.InlineKeyboardMarkup()
+    if app_data["status"] == "pending":
+        keyboard.add(types.InlineKeyboardButton("✅ ПРИНЯТЬ", callback_data=f"accept_{app_data['id']}"))
+    keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="list_pending"))
+
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+
+def accept_app(call, app_id, applications):
     app_data = next((a for a in applications if a["id"] == app_id), None)
     if not app_data or app_data["status"] != "pending":
-        await query.edit_message_text("❌ Не найдена.")
+        bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id)
         return
-    
+
     app_data["status"] = "accepted"
     save_json(DATA_FILE, applications)
-    
+
+    # Отправляем уведомление принятому
     try:
-        await query.bot.send_message(
-            chat_id=app_data["chat_id"],
-            text=f"Привет {app_data['real_name']}!\nТвоя заявка на модератора была принята!\nИ твоего модератора уже выдали!\nВаш ник: {app_data['minecraft_nick']}"
+        bot.send_message(
+            app_data["chat_id"],
+            f"Привет {app_data['real_name']}!\n"
+            f"Твоя заявка на модератора была принята!\n"
+            f"И твоего модератора уже выдали!\n"
+            f"Ваш ник: {app_data['minecraft_nick']}"
         )
-        await query.edit_message_text(f"✅ Заявка #{app_id} принята!")
+        bot.edit_message_text(
+            f"✅ Заявка #{app_id} принята! Уведомление отправлено.",
+            call.message.chat.id,
+            call.message.message_id
+        )
     except Exception as e:
-        await query.edit_message_text(f"⚠️ Ошибка: {e}")
+        bot.edit_message_text(
+            f"✅ Заявка #{app_id} принята!\n⚠️ Ошибка отправки: {e}",
+            call.message.chat.id,
+            call.message.message_id
+        )
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    # Устанавливаем webhook через urllib (встроенная библиотека)
-    import urllib.request
-    webhook_url = f"{RENDER_URL}/telegram"
-    set_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook?url={webhook_url}"
-    
-    try:
-        with urllib.request.urlopen(set_url) as response:
-            print(f"🔗 Webhook установлен: {response.read().decode()}")
-    except Exception as e:
-        print(f"❌ Ошибка webhook: {e}")
+    # Запускаем polling в отдельном потоке
+    threading.Thread(target=bot.polling, kwargs={"non_stop": True, "timeout": 60}, daemon=True).start()
+    print("✅ Бот запущен в потоке")
 
-    # Создаём приложение Telegram
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
-    telegram_app.add_handler(CommandHandler("start", start))
-    telegram_app.add_handler(CommandHandler("admin", admin_panel))
-    telegram_app.add_handler(CallbackQueryHandler(button_handler))
-    
-    loop.run_until_complete(telegram_app.initialize())
-    
-    print("✅ Бот готов к работе!")
-    
     # Запускаем Flask
     app.run(host="0.0.0.0", port=PORT)
