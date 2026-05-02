@@ -8,11 +8,15 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ========== КОНФИГУРАЦИЯ ==========
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8694410683:AAHDkj6SfiZF1PY5dr3Ahc97jNxEnIkWZkY")
-ADMIN_IDS = [5145474067]  # ❗Замени на свой Telegram ID
-DATA_FILE = "/opt/render/project/src/applications.json"
-PENDING_CODES_FILE = "/opt/render/project/src/pending_codes.json"
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+if not TELEGRAM_TOKEN:
+    raise ValueError("TELEGRAM_TOKEN не установлен!")
+
+ADMIN_IDS = [5145474067]  # ❗СВОЙ ID
+DATA_FILE = "applications.json"
+PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
+RENDER_URL = os.environ.get("RENDER_URL", "https://moderfoggyland.onrender.com")
 
 # ========== ХРАНИЛИЩЕ ==========
 def load_json(filename, default=None):
@@ -33,10 +37,20 @@ telegram_app = None
 
 @app.route("/")
 def home():
-    return "FoggyLand Bot is running!"
+    return "✅ Бот работает!"
+
+@app.route("/telegram", methods=["POST"])
+async def telegram_webhook():
+    global telegram_app
+    if telegram_app:
+        data = request.get_json(force=True)
+        update = Update.de_json(data, telegram_app.bot)
+        await telegram_app.process_update(update)
+    return "ok"
 
 @app.route("/webhook", methods=["POST"])
 def formspree_webhook():
+    global telegram_app
     data = request.get_json(force=True) if request.is_json else request.form
     
     code = data.get("verification_code", "").strip().upper()
@@ -73,18 +87,22 @@ def formspree_webhook():
     
     if telegram_app and telegram_app.bot:
         try:
-            telegram_app.bot.send_message(
-                chat_id=chat_id,
-                text=f"Привет {real_name}! Твоя заявка рассмотрится в течении недели. Ожидай."
+            asyncio.new_event_loop().run_until_complete(
+                telegram_app.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"Привет {real_name}! Твоя заявка рассмотрится в течении недели. Ожидай."
+                )
             )
         except Exception as e:
             print(f"Ошибка отправки: {e}")
         
         for admin_id in ADMIN_IDS:
             try:
-                telegram_app.bot.send_message(
-                    chat_id=admin_id,
-                    text=f"🆕 Новая заявка #{new_app['id']} от {real_name}\nНик: {minecraft_nick}\nTG: @{telegram_user}"
+                asyncio.new_event_loop().run_until_complete(
+                    telegram_app.bot.send_message(
+                        chat_id=admin_id,
+                        text=f"🆕 Новая заявка #{new_app['id']} от {real_name}\nНик: {minecraft_nick}\nTG: @{telegram_user}"
+                    )
                 )
             except:
                 pass
@@ -109,7 +127,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
-        await update.message.reply_text("⛔ У вас нет доступа к админ-панели.")
+        await update.message.reply_text("⛔ Нет доступа.")
         return
     
     keyboard = [
@@ -119,7 +137,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     
     await update.message.reply_text(
-        "🎛 Админ-панель FoggyLand\nВыберите действие:",
+        "🎛 Админ-панель FoggyLand",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -180,10 +198,7 @@ async def show_detail(query, app_data):
         f"👤 Имя: {app_data['real_name']}\n"
         f"⛏ Ник: {app_data['minecraft_nick']}\n"
         f"📬 Telegram: {app_data.get('telegram_user', '-')}\n"
-        f"📅 Дата: {app_data.get('submitted_at', '-')[:10]}\n"
-        f"📊 Статус: {'✅ Принята' if app_data['status'] == 'accepted' else '⏳ Ожидает'}\n\n"
-        f"🛡 Опыт: {app_data.get('experience', '-')}\n\n"
-        f"💬 Мотивация: {app_data.get('motivation', '-')}"
+        f"📊 Статус: {'✅ Принята' if app_data['status'] == 'accepted' else '⏳ Ожидает'}"
     )
     
     keyboard = []
@@ -196,7 +211,7 @@ async def show_detail(query, app_data):
 async def accept_app(query, app_id, applications):
     app_data = next((a for a in applications if a["id"] == app_id), None)
     if not app_data or app_data["status"] != "pending":
-        await query.edit_message_text("❌ Заявка не найдена или уже обработана.")
+        await query.edit_message_text("❌ Не найдена.")
         return
     
     app_data["status"] = "accepted"
@@ -207,12 +222,12 @@ async def accept_app(query, app_id, applications):
             chat_id=app_data["chat_id"],
             text=f"Привет {app_data['real_name']}!\nТвоя заявка на модератора была принята!\nИ твоего модератора уже выдали!\nВаш ник: {app_data['minecraft_nick']}"
         )
-        await query.edit_message_text(f"✅ Заявка #{app_id} принята! Уведомление отправлено.")
+        await query.edit_message_text(f"✅ Заявка #{app_id} принята!")
     except Exception as e:
-        await query.edit_message_text(f"✅ Заявка #{app_id} принята!\n⚠️ Ошибка отправки: {e}")
+        await query.edit_message_text(f"⚠️ Ошибка: {e}")
 
 # ========== ЗАПУСК ==========
-async def run_bot():
+async def setup_webhook():
     global telegram_app
     telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
     telegram_app.add_handler(CommandHandler("start", start))
@@ -220,17 +235,14 @@ async def run_bot():
     telegram_app.add_handler(CallbackQueryHandler(button_handler))
     
     await telegram_app.initialize()
-    await telegram_app.start()
-    await telegram_app.updater.start_polling()
-    print("✅ Бот запущен!")
-
-def main():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.create_task(run_bot())
-    
-    # Запускаем Flask
-    app.run(host="0.0.0.0", port=PORT)
+    await telegram_app.bot.set_webhook(url=f"{RENDER_URL}/telegram")
+    print(f"✅ Webhook установлен: {RENDER_URL}/telegram")
 
 if __name__ == "__main__":
-    main()
+    # Устанавливаем webhook при старте
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(setup_webhook())
+    
+    # Запускаем Flask (без gunicorn для теста)
+    app.run(host="0.0.0.0", port=PORT)
