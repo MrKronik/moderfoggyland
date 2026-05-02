@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import threading
+import requests
 from datetime import datetime
 from flask import Flask, request, jsonify
 import telebot
@@ -120,7 +121,7 @@ def admin_panel(message):
         bot.reply_to(message, "⛔ Нет доступа.")
         return
 
-    keyboard = types.InlineKeyboardMarkup()
+    keyboard = types.InlineKeyboardMarkup(row_width=1)
     keyboard.add(
         types.InlineKeyboardButton("📋 Все заявки", callback_data="list_all"),
         types.InlineKeyboardButton("⏳ Ожидающие", callback_data="list_pending"),
@@ -153,7 +154,7 @@ def callback_handler(call):
         app_id = int(call.data.split("_")[1])
         accept_app(call, app_id, applications)
     elif call.data == "back_to_admin":
-        keyboard = types.InlineKeyboardMarkup()
+        keyboard = types.InlineKeyboardMarkup(row_width=1)
         keyboard.add(
             types.InlineKeyboardButton("📋 Все заявки", callback_data="list_all"),
             types.InlineKeyboardButton("⏳ Ожидающие", callback_data="list_pending"),
@@ -167,7 +168,7 @@ def show_list(call, apps):
         return
 
     text = "📊 Заявки:\n\n"
-    keyboard = types.InlineKeyboardMarkup()
+    keyboard = types.InlineKeyboardMarkup(row_width=1)
     for app_data in apps[:10]:
         emoji = "✅" if app_data["status"] == "accepted" else "⏳"
         text += f"{emoji} #{app_data['id']} | {app_data['real_name']} | {app_data['minecraft_nick']}\n"
@@ -192,7 +193,7 @@ def show_detail(call, app_data):
         f"💬 Мотивация: {app_data.get('motivation', '-')}"
     )
 
-    keyboard = types.InlineKeyboardMarkup()
+    keyboard = types.InlineKeyboardMarkup(row_width=1)
     if app_data["status"] == "pending":
         keyboard.add(types.InlineKeyboardButton("✅ ПРИНЯТЬ", callback_data=f"accept_{app_data['id']}"))
     keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="list_pending"))
@@ -231,18 +232,16 @@ def accept_app(call, app_id, applications):
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    # Принудительно удаляем вебхук через прямую HTTP-ссылку
-    import requests
+    # 1. Принудительно удаляем webhook (даже если уже удалён – не страшно)
     try:
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteWebhook"
-        resp = requests.get(url)
-        print("🧹 Webhook удалён:", resp.json())
+        requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteWebhook")
+        print("🧹 Webhook удалён")
     except Exception as e:
-        print("⚠️ Не удалось удалить webhook:", e)
-    
-    # Теперь запускаем polling
+        print(f"⚠️ Ошибка удаления webhook: {e}")
+
+    # 2. Запускаем polling
     threading.Thread(target=bot.polling, kwargs={"non_stop": True, "timeout": 60}, daemon=True).start()
     print("✅ Бот запущен (polling)")
 
-    # Flask
+    # 3. Flask
     app.run(host="0.0.0.0", port=PORT)
