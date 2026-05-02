@@ -229,13 +229,14 @@ async def accept_app(query, app_id, applications):
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    # Устанавливаем webhook через прямой HTTP-запрос
+    # Устанавливаем webhook через urllib (встроенная библиотека)
+    import urllib.request
     webhook_url = f"{RENDER_URL}/telegram"
     set_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook?url={webhook_url}"
     
     try:
-        response = requests.get(set_url)
-        print(f"🔗 Webhook установлен: {response.json()}")
+        with urllib.request.urlopen(set_url) as response:
+            print(f"🔗 Webhook установлен: {response.read().decode()}")
     except Exception as e:
         print(f"❌ Ошибка webhook: {e}")
 
