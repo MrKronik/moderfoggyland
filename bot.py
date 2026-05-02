@@ -7,7 +7,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ========== КОНФИГУРАЦИЯ ==========
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "ТВОЙ_ТОКЕН_СЮДА")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8694410683:AAHDkj6SfiZF1PY5dr3Ahc97jNxEnIkWZkY")
 ADMIN_IDS = [123456789]  # ❗Замени на свой Telegram ID (узнать в @userinfobot)
 DATA_FILE = "applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
