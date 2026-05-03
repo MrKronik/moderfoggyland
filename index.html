@@ -358,7 +358,7 @@
 
 <script>
     (function() {
-        // --- Генерация возраста от 13 до 45+ ---
+        // Генерация возрастов
         const ageSelect = document.getElementById('ageSelect');
         if (ageSelect) {
             ageSelect.innerHTML = '<option value="" disabled selected>Выберите возраст</option>';
@@ -374,28 +374,25 @@
             ageSelect.appendChild(olderOption);
         }
 
-        // --- Подсветка выбранной радио-кнопки ---
+        // Подсветка радио‑кнопок
         const radioGroup = document.getElementById('cheatsRadioGroup');
         if (radioGroup) {
             const radioOptions = radioGroup.querySelectorAll('.radio-option');
             const radioInputs = radioGroup.querySelectorAll('input[type="radio"]');
-
             radioInputs.forEach(input => {
                 input.addEventListener('change', function() {
-                    // Убираем класс selected со всех
                     radioOptions.forEach(opt => opt.classList.remove('selected'));
-                    // Добавляем класс selected к родительской метке
                     const parentLabel = this.closest('.radio-option');
-                    if (parentLabel) {
-                        parentLabel.classList.add('selected');
-                    }
+                    if (parentLabel) parentLabel.classList.add('selected');
                 });
             });
         }
 
-        // --- Обработка формы ---
         const form = document.getElementById('moderatorForm');
         const successDiv = document.getElementById('successBlock');
+
+        // ---------- URL НАШЕГО СЕРВЕРА ----------
+        const WEBHOOK_URL = 'https://moderfoggyland.onrender.com/webhook';
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -412,14 +409,25 @@
                 return;
             }
 
-            const formData = new FormData(form);
-            formData.append('submitted_at', new Date().toISOString());
+            // Собираем данные из всех полей
+            const formData = {
+                verification_code: form.querySelector('[name="verification_code"]').value.trim(),
+                real_name: form.querySelector('[name="real_name"]').value.trim(),
+                minecraft_nick: form.querySelector('[name="minecraft_nick"]').value.trim(),
+                telegram: form.querySelector('[name="telegram"]').value.trim(),
+                age: ageValue,
+                attitude_to_cheats: form.querySelector('[name="attitude_to_cheats"]:checked')?.value || '',
+                experience: form.querySelector('[name="experience"]').value.trim(),
+                motivation: form.querySelector('[name="motivation"]').value.trim(),
+                submitted_at: new Date().toISOString()
+            };
 
+            // Отправляем JSON прямо на Render
             try {
-                const response = await fetch(form.action, {
+                const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
-                    body: formData,
-                    headers: { 'Accept': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
                 });
 
                 if (response.ok) {
@@ -428,7 +436,8 @@
                     form.reset();
                     successDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 } else {
-                    alert('⚠️ Ошибка отправки. Проверьте данные или попробуйте позже.');
+                    const err = await response.json().catch(() => ({}));
+                    alert('⚠️ Ошибка: ' + (err.error || 'не удалось отправить заявку'));
                 }
             } catch (networkError) {
                 console.error('Сетевая ошибка:', networkError);
