@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>🌫️ FoggyLand | Заявка на Администратора</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #1a2e1a;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* ── Живой туманный фон ── */
+    .fog-background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      background: linear-gradient(160deg, #1f3b1f 0%, #2b4f27 30%, #3b5e32 60%, #5e7a45 100%);
+      overflow: hidden;
+    }
+
+    .fog-cloud {
+      position: absolute;
+      background: radial-gradient(ellipse at center, rgba(220, 240, 190, 0.25) 0%, rgba(180, 200, 140, 0.06) 70%, transparent 90%);
+      border-radius: 50%;
+      filter: blur(55px);
+      animation: fogFloat 28s infinite alternate ease-in-out;
+    }
+
+    .fog-cloud:nth-child(1) { width: 700px; height: 300px; top: -5%; left: -5%; animation-duration: 32s; }
+    .fog-cloud:nth-child(2) { width: 600px; height: 350px; bottom: 0%; right: -8%; animation-duration: 38s; animation-delay: -7s; }
+    .fog-cloud:nth-child(3) { width: 550px; height: 280px; top: 40%; left: 35%; animation-duration: 42s; animation-delay: -15s; }
+
+    @keyframes fogFloat {
+      0% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+      40% { transform: translate(3%, -2%) scale(1.04); opacity: 0.7; }
+      70% { transform: translate(-2%, 1.5%) scale(0.97); opacity: 0.5; }
+      100% { transform: translate(2.5%, 0.8%) scale(1.06); opacity: 0.65; }
+    }
+
+    .firefly {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: #faf3b0;
+      border-radius: 50%;
+      box-shadow: 0 0 18px 8px rgba(240, 230, 100, 0.7);
+      animation: fireflyDrift 24s infinite ease-in-out;
+    }
+    .firefly:nth-child(4) { top: 15%; left: 25%; animation-duration: 26s; }
+    .firefly:nth-child(5) { top: 75%; left: 70%; animation-duration: 29s; animation-delay: -6s; }
+    .firefly:nth-child(6) { top: 45%; left: 80%; animation-duration: 27s; animation-delay: -12s; }
+
+    @keyframes fireflyDrift {
+      0% { transform: translate(0, 0) scale(0.5); opacity: 0.1; }
+      25% { transform: translate(25px, -30px) scale(1.1); opacity: 0.9; }
+      50% { transform: translate(-15px, -60px) scale(0.7); opacity: 0.4; }
+      75% { transform: translate(30px, -25px) scale(1); opacity: 0.8; }
+      100% { transform: translate(10px, -70px) scale(0.8); opacity: 0.5; }
+    }
+
+    .page-wrapper {
+      width: 100%;
+      max-width: 750px;
+      position: relative;
+      z-index: 2;
+      margin: 0 auto;
+    }
+
+    .application-card {
+      background: rgba(20, 30, 18, 0.8);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      border-radius: 2.8rem;
+      padding: 2.5rem 2.2rem;
+      box-shadow: 0 35px 60px -20px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(110, 150, 90, 0.35);
+      border: 1px solid rgba(100, 140, 70, 0.3);
+      transition: box-shadow 0.4s;
+    }
+
+    .application-card:hover {
+      box-shadow: 0 40px 65px -15px rgba(20, 30, 5, 0.8), 0 0 0 1px rgba(140, 190, 80, 0.5);
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      text-align: center;
+      background: linear-gradient(180deg, #e2f5d0 0%, #9bc17a 90%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      filter: drop-shadow(0 4px 10px rgba(0, 60, 0, 0.5));
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: #bcddb0;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: rgba(40, 70, 30, 0.5);
+      padding: 0.5rem 1.8rem;
+      border-radius: 3rem;
+      width: fit-content;
+      margin-left: auto;
+      margin-right: auto;
+      backdrop-filter: blur(10px);
+      border: 1px solid #5e874b;
+    }
+
+    .form-section {
+      margin-bottom: 2.2rem;
+    }
+
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #c7e6b5;
+      margin-bottom: 1.2rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid #5b7a42;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      letter-spacing: 0.2px;
+    }
+
+    .form-group {
+      margin-bottom: 1.4rem;
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-weight: 600;
+      color: #c2ddb0;
+      margin-bottom: 0.45rem;
+      font-size: 0.95rem;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 0.85rem 1.2rem;
+      background: rgba(8, 15, 8, 0.65);
+      border: 1.5px solid #3b5432;
+      border-radius: 1.2rem;
+      font-size: 1rem;
+      color: #eaf4e0;
+      font-family: inherit;
+      transition: all 0.25s;
+      backdrop-filter: blur(6px);
+      outline: none;
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: #68805e;
+      opacity: 0.8;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: #96c47a;
+      box-shadow: 0 0 0 3px rgba(120, 190, 80, 0.4);
+      background: rgba(12, 22, 12, 0.8);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 85px;
+    }
+
+    .row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .row .form-group {
+      flex: 1 1 180px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 0.4rem;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(30, 45, 25, 0.7);
+      padding: 0.3rem 0.9rem;
+      border-radius: 2rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .checkbox-item:hover {
+      background: rgba(60, 90, 40, 0.7);
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      width: auto;
+      accent-color: #7bb85a;
+    }
+
+    button {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, #2b5322, #458739);
+      color: #f2ffe5;
+      border: none;
+      border-radius: 1.5rem;
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      cursor: pointer;
+      transition: all 0.25s;
+      box-shadow: 0 12px 22px -8px #0a1f0a;
+      margin-top: 0.8rem;
+      border: 1px solid #56944a;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #346a29, #4f9e42);
+      transform: scale(0.98);
+      border-color: #7fc067;
+    }
+
+    .success-message {
+      background: rgba(25, 45, 25, 0.9);
+      backdrop-filter: blur(15px);
+      border: 2px solid #67a84e;
+      padding: 2rem;
+      border-radius: 2rem;
+      text-align: center;
+      color: #def7d0;
+      font-weight: 600;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .footer {
+      margin-top: 2rem;
+      text-align: center;
+      color: #8aa87c;
+      font-size: 0.8rem;
+      border-top: 1px solid #385233;
+      padding-top: 1.3rem;
+    }
+
+    hr {
+      border-color: #2f4827;
+      margin: 1.2rem 0;
+      opacity: 0.6;
+    }
+
+    @media (max-width: 600px) {
+      .application-card { padding: 1.8rem 1.2rem; }
+      h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="fog-background">
+  <div class="fog-cloud"></div>
+  <div class="fog-cloud"></div>
+  <div class="fog-cloud"></div>
+  <div class="firefly"></div>
+  <div class="firefly"></div>
+  <div class="firefly"></div>
+</div>
+
+<div class="page-wrapper">
+  <div class="application-card" id="applicationCard">
+    <h1>
+      <span>🌲</span> FoggyLand <span>🌫️</span>
+    </h1>
+    <div class="subtitle">
+      <span>🛡️</span> Повышение: Модератор → Администратор <span>✨</span>
+    </div>
+
+    <form id="adminApplicationForm">
+      <!-- Секция 1: Личная информация -->
+      <div class="form-section">
+        <div class="section-title"><span>📋</span> 1. Личные данные</div>
+        <div class="row">
+          <div class="form-group">
+            <label>🧑 Имя и фамилия</label>
+            <input type="text" name="fullName" placeholder="Алексей Иванов" required autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label>⛏️ Никнейм Minecraft</label>
+            <input type="text" name="minecraftNick" placeholder="MrKronick" required>
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>📅 Возраст</label>
+            <select name="age" required>
+              <option value="" disabled selected>Выберите возраст</option>
+              <option value="14">14</option><option value="15">15</option><option value="16">16</option>
+              <option value="17">17</option><option value="18-24">18-24</option><option value="25-30">25-30</option>
+              <option value="30+">30+</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>📬 Telegram</label>
+            <input type="text" name="telegram" placeholder="@foggyland" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>🌍 Часовой пояс / страна</label>
+          <input type="text" name="timezone" placeholder="МСК (UTC+3)" required>
+        </div>
+      </div>
+
+      <!-- Секция 2: Опыт модератора -->
+      <div class="form-section">
+        <div class="section-title"><span>⚡</span> 2. Опыт модератора на FoggyLand</div>
+        <div class="form-group">
+          <label>📆 Сколько времени вы являетесь модератором сервера?</label>
+          <input type="text" name="modDuration" placeholder="3 месяца, с января 2026" required>
+        </div>
+        <div class="form-group">
+          <label>🔨 Какие основные задачи вы выполняли? (модерация чата, решение споров, проверка построек)</label>
+          <textarea name="modTasks" placeholder="Модерировал чат, рассматривал жалобы на гриферство..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label>📊 Оцените свою активность как модератора (часов в неделю)</label>
+          <select name="activityHours" required>
+            <option value="" disabled selected>Выберите...</option>
+            <option value="5-10">5-10 часов</option>
+            <option value="10-20">10-20 часов</option>
+            <option value="20-35">20-35 часов</option>
+            <option value="35+">35+ часов</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Секция 3: Знание правил (очень много вопросов) -->
+      <div class="form-section">
+        <div class="section-title"><span>📜</span> 3. Тест на знание правил сервера</div>
+        <p style="color:#b4cf9e; margin-bottom:1rem; font-size:0.9rem;">Ответьте развернуто, опираясь на правила FoggyLand.</p>
+
+        <div class="form-group">
+          <label>❓ 1. Какое наказание за использование читов / чит-клиентов? (пункт 1.1.1)</label>
+          <textarea name="rule_q1" placeholder="Согласно правилам..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 2. Что грозит за массовый гриферинг и разбойные нападения? (п. 1.2)</label>
+          <textarea name="rule_q2" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 3. Как наказывается дюп предметов (не ТНТ)? (п. 1.4)</label>
+          <textarea name="rule_q3" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 4. Разрешено ли использование твинков (вторых аккаунтов)? (п. 1.7)</label>
+          <textarea name="rule_q4" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 5. Можно ли продавать игровые ресурсы за реальные деньги? (п. 1.9)</label>
+          <textarea name="rule_q5" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 6. Опишите наказания за PvP без согласия (п. 1.10 и подпункты)</label>
+          <textarea name="rule_q6" placeholder="Упомяните разные случаи: убийство, потеря вещей, нападение на администратора..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 7. Что считается помехой работе администрации? (п. 1.11)</label>
+          <textarea name="rule_q7" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 8. Какое наказание за спам и злоупотребление капсом? (п. 2.2, 2.3)</label>
+          <textarea name="rule_q8" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 9. Что грозит за оскорбления личности и провокации? (п. 2.5)</label>
+          <textarea name="rule_q9" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 10. Разрешена ли реклама сторонних серверов? (п. 2.10)</label>
+          <textarea name="rule_q10" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 11. Как следует поступить, если игрок намеренно создаёт лаги (лаг-машина)? (п. 1.6)</label>
+          <textarea name="rule_q11" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 12. Можно ли разглашать сид мира? (п. 1.8)</label>
+          <textarea name="rule_q12" required></textarea>
+        </div>
+      </div>
+
+      <!-- Секция 4: Административные навыки -->
+      <div class="form-section">
+        <div class="section-title"><span>⚙️</span> 4. Технические и административные навыки</div>
+        <div class="form-group">
+          <label>🖥️ Знакомы ли вы с консолью сервера, плагинами (Essentials, CoreProtect)?</label>
+          <textarea name="techSkills" placeholder="Опишите ваш опыт работы с админ-инструментами..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>📂 Умеете ли вы анализировать логи, находить причины лагов?</label>
+          <select name="logAnalysis" required>
+            <option value="" disabled selected>Выберите...</option>
+            <option value="yes">Да, имею опыт</option>
+            <option value="basic">Базовые знания</option>
+            <option value="no">Нет, но готов учиться</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>🗂️ Как вы организуете работу команды модераторов? (делегирование, график)</label>
+          <textarea name="teamManagement" placeholder="Ваш подход..."></textarea>
+        </div>
+      </div>
+
+      <!-- Секция 5: Игровые ситуации и конфликты -->
+      <div class="form-section">
+        <div class="section-title"><span>🧩</span> 5. Решение конфликтных ситуаций</div>
+        <div class="form-group">
+          <label>🎯 Игрок А обвиняет игрока Б в краже алмазов. Ваши действия как администратора?</label>
+          <textarea name="situation1" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>🔥 В чате разгорается скандал между двумя кланами. Как вы погасите конфликт?</label>
+          <textarea name="situation2" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>🕵️ Вы обнаружили, что модератор злоупотребляет полномочиями. Что предпримете?</label>
+          <textarea name="situation3" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>📢 Как вы поступите, если популярный игрок нарушает правила, но сообщество за него заступается?</label>
+          <textarea name="situation4" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>⏳ Опишите ваш подход к выдаче наказаний: гибкость или строгость? Примеры.</label>
+          <textarea name="punishmentStyle" required></textarea>
+        </div>
+      </div>
+
+      <!-- Секция 6: Мотивация и цели -->
+      <div class="form-section">
+        <div class="section-title"><span>💎</span> 6. Мотивация и видение</div>
+        <div class="form-group">
+          <label>🌟 Почему вы хотите стать администратором именно на FoggyLand?</label>
+          <textarea name="motivation" placeholder="Расскажите, что вас вдохновляет..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label>🔮 Какие улучшения вы бы предложили для сервера в роли администратора?</label>
+          <textarea name="suggestions" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>🤝 Готовы ли вы уделять серверу не менее 15 часов в неделю?</label>
+          <div class="checkbox-group">
+            <label class="checkbox-item"><input type="radio" name="commitment" value="yes" required> ✅ Да, готов(а)</label>
+            <label class="checkbox-item"><input type="radio" name="commitment" value="maybe"> ⚠️ Зависит от обстоятельств</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- КОД ПОДТВЕРЖДЕНИЯ ИЗ БОТА -->
+      <div class="form-group">
+        <label>🤖 Код подтверждения из бота</label>
+        <input type="text" name="verification_code" placeholder="FL-XXXXXX" required>
+        <small style="color:#a2c0a0; display:block; margin-top:0.3rem;">
+          📌 Напиши /start боту <b>@foggylandbot</b> и скопируй код сюда
+        </small>
+      </div>
+
+      <input type="hidden" name="form_type" value="moderator_to_admin">
+      <input type="hidden" name="timestamp" id="timestampInput">
+
+      <button type="submit">
+        <span>🍃</span> Отправить заявку на администратора <span>🍃</span>
+      </button>
+    </form>
+
+    <div id="successBlock" class="success-message hidden">
+      <span style="font-size: 2rem;">🎉</span>
+      <strong>Заявка успешно отправлена!</strong>
+      <span>Администрация FoggyLand рассмотрит её в течение 3–5 дней.</span>
+      <span style="font-size: 0.9rem; opacity:0.9;">Ожидайте ответа в Telegram.</span>
+    </div>
+
+    <div class="footer">
+      <span>🌲 FoggyLand · только честная игра</span><br>
+      <span>🔒 Все данные конфиденциальны и используются только для рассмотрения заявки.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const form = document.getElementById('adminApplicationForm');
+    const successDiv = document.getElementById('successBlock');
+    const timestampInput = document.getElementById('timestampInput');
+
+    if (timestampInput) {
+      timestampInput.value = new Date().toISOString();
+    }
+
+    const WEBHOOK_URL = 'https://moderfoggyland.onrender.com/admin-webhook';
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const ageSelect = form.querySelector('select[name="age"]');
+      if (ageSelect && ageSelect.value === "") {
+        alert('Пожалуйста, укажите ваш возраст.');
+        return;
+      }
+
+      const data = {
+        verification_code: form.querySelector('[name="verification_code"]').value.trim(),
+        fullName: form.querySelector('[name="fullName"]').value.trim(),
+        minecraftNick: form.querySelector('[name="minecraftNick"]').value.trim(),
+        age: ageSelect ? ageSelect.value : '',
+        telegram: form.querySelector('[name="telegram"]').value.trim(),
+        timezone: form.querySelector('[name="timezone"]').value.trim(),
+        modDuration: form.querySelector('[name="modDuration"]').value.trim(),
+        modTasks: form.querySelector('[name="modTasks"]').value.trim(),
+        activityHours: form.querySelector('[name="activityHours"]').value,
+        rule_q1: form.querySelector('[name="rule_q1"]').value.trim(),
+        rule_q2: form.querySelector('[name="rule_q2"]').value.trim(),
+        rule_q3: form.querySelector('[name="rule_q3"]').value.trim(),
+        rule_q4: form.querySelector('[name="rule_q4"]').value.trim(),
+        rule_q5: form.querySelector('[name="rule_q5"]').value.trim(),
+        rule_q6: form.querySelector('[name="rule_q6"]').value.trim(),
+        rule_q7: form.querySelector('[name="rule_q7"]').value.trim(),
+        rule_q8: form.querySelector('[name="rule_q8"]').value.trim(),
+        rule_q9: form.querySelector('[name="rule_q9"]').value.trim(),
+        rule_q10: form.querySelector('[name="rule_q10"]').value.trim(),
+        rule_q11: form.querySelector('[name="rule_q11"]').value.trim(),
+        rule_q12: form.querySelector('[name="rule_q12"]').value.trim(),
+        techSkills: form.querySelector('[name="techSkills"]').value.trim(),
+        logAnalysis: form.querySelector('[name="logAnalysis"]').value,
+        teamManagement: form.querySelector('[name="teamManagement"]').value.trim(),
+        situation1: form.querySelector('[name="situation1"]').value.trim(),
+        situation2: form.querySelector('[name="situation2"]').value.trim(),
+        situation3: form.querySelector('[name="situation3"]').value.trim(),
+        situation4: form.querySelector('[name="situation4"]').value.trim(),
+        punishmentStyle: form.querySelector('[name="punishmentStyle"]').value.trim(),
+        motivation: form.querySelector('[name="motivation"]').value.trim(),
+        suggestions: form.querySelector('[name="suggestions"]').value.trim(),
+        commitment: form.querySelector('[name="commitment"]:checked')?.value || '',
+        form_type: 'moderator_to_admin',
+        submitted_at: new Date().toISOString()
+      };
+
+      try {
+        const response = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          form.classList.add('hidden');
+          successDiv.classList.remove('hidden');
+          successDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          form.reset();
+        } else {
+          const err = await response.json().catch(() => ({}));
+          alert('⚠️ Ошибка: ' + (err.error || 'не удалось отправить заявку'));
+        }
+      } catch (networkError) {
+        console.error('Ошибка сети:', networkError);
+        alert('🌐 Ошибка сети. Проверьте подключение к интернету.');
+      }
+    });
+  })();
+</script>
+</body>
+</html>
