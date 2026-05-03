@@ -13,7 +13,8 @@ if not TELEGRAM_TOKEN:
     raise ValueError("TELEGRAM_TOKEN не установлен!")
 
 ADMIN_IDS = [5145474067]   # ❗ Свой Telegram ID
-DATA_FILE = "applications.json"
+DATA_FILE = "applications.json"           # заявки на модератора
+ADMIN_APPS_FILE = "admin_applications.json"  # заявки на администратора
 PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
 RENDER_URL = "https://moderfoggyland.onrender.com"
@@ -40,10 +41,10 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 def home():
     return "✅ Бот работает!"
 
+# ----- Приём заявки на модератора -----
 @app.route("/webhook", methods=["POST"])
 def formspree_webhook():
     data = request.get_json(force=True) if request.is_json else request.form
-
     code = data.get("verification_code", "").strip().upper()
     pending_codes = load_json(PENDING_CODES_FILE)
 
@@ -61,7 +62,6 @@ def formspree_webhook():
     attitude = data.get("attitude_to_cheats", "")
 
     applications = load_json(DATA_FILE, [])
-
     new_app = {
         "id": len(applications) + 1,
         "chat_id": chat_id,
@@ -74,28 +74,100 @@ def formspree_webhook():
         "status": "pending",
         "submitted_at": datetime.now().isoformat()
     }
-
     applications.append(new_app)
     save_json(DATA_FILE, applications)
 
-    # Отправляем заявителю
+    # Уведомления
     try:
         bot.send_message(chat_id,
                          f"Привет {real_name}! Твоя заявка рассмотрится в течении недели. Ожидай.")
     except Exception as e:
         print(f"Ошибка отправки заявителю: {e}")
 
-    # Отправляем админам
     for admin_id in ADMIN_IDS:
         try:
             bot.send_message(admin_id,
                              f"🆕 Новая заявка #{new_app['id']} от {real_name}\n"
                              f"Ник: {minecraft_nick}\nTG: @{telegram_user}")
-        except Exception as e:
-            print(f"Ошибка отправки админу: {e}")
+        except:
+            pass
 
     return jsonify({"status": "ok", "app_id": new_app["id"]})
 
+# ----- Приём заявки на администратора -----
+@app.route("/admin-webhook", methods=["POST"])
+def admin_application_webhook():
+    data = request.get_json(force=True) if request.is_json else request.form
+    code = data.get("verification_code", "").strip().upper()
+    pending_codes = load_json(PENDING_CODES_FILE)
+    if not code or code not in pending_codes:
+        return jsonify({"error": "Неверный код подтверждения"}), 400
+
+    chat_id = pending_codes.pop(code)
+    save_json(PENDING_CODES_FILE, pending_codes)
+
+    full_name = data.get("fullName", "Игрок")
+    nick = data.get("minecraftNick", "")
+    telegram_user = data.get("telegram", "")
+    # Сохраняем все поля (можно выборочно, но пусть будут все)
+    admin_apps = load_json(ADMIN_APPS_FILE, [])
+    new_app = {
+        "id": len(admin_apps) + 1,
+        "chat_id": chat_id,
+        "full_name": full_name,
+        "minecraft_nick": nick,
+        "telegram_user": telegram_user,
+        "age": data.get("age", ""),
+        "timezone": data.get("timezone", ""),
+        "modDuration": data.get("modDuration", ""),
+        "modTasks": data.get("modTasks", ""),
+        "activityHours": data.get("activityHours", ""),
+        "rule_q1": data.get("rule_q1", ""),
+        "rule_q2": data.get("rule_q2", ""),
+        "rule_q3": data.get("rule_q3", ""),
+        "rule_q4": data.get("rule_q4", ""),
+        "rule_q5": data.get("rule_q5", ""),
+        "rule_q6": data.get("rule_q6", ""),
+        "rule_q7": data.get("rule_q7", ""),
+        "rule_q8": data.get("rule_q8", ""),
+        "rule_q9": data.get("rule_q9", ""),
+        "rule_q10": data.get("rule_q10", ""),
+        "rule_q11": data.get("rule_q11", ""),
+        "rule_q12": data.get("rule_q12", ""),
+        "techSkills": data.get("techSkills", ""),
+        "logAnalysis": data.get("logAnalysis", ""),
+        "teamManagement": data.get("teamManagement", ""),
+        "situation1": data.get("situation1", ""),
+        "situation2": data.get("situation2", ""),
+        "situation3": data.get("situation3", ""),
+        "situation4": data.get("situation4", ""),
+        "punishmentStyle": data.get("punishmentStyle", ""),
+        "motivation": data.get("motivation", ""),
+        "suggestions": data.get("suggestions", ""),
+        "commitment": data.get("commitment", ""),
+        "status": "pending",
+        "submitted_at": datetime.now().isoformat()
+    }
+    admin_apps.append(new_app)
+    save_json(ADMIN_APPS_FILE, admin_apps)
+
+    try:
+        bot.send_message(chat_id,
+                         f"Привет {full_name}! Твоя заявка на администратора принята и будет рассмотрена в течение 5-7 дней. Ожидай.")
+    except Exception as e:
+        print(f"Ошибка отправки заявителю: {e}")
+
+    for admin_id in ADMIN_IDS:
+        try:
+            bot.send_message(admin_id,
+                             f"🆕 Заявка на администратора #{new_app['id']} от {full_name}\n"
+                             f"Ник: {nick}\nTG: @{telegram_user}")
+        except:
+            pass
+
+    return jsonify({"status": "ok", "app_id": new_app["id"]})
+
+# ----- Telegram вебхук (приём команд) -----
 @app.route("/telegram", methods=["POST"])
 def telegram_webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -128,10 +200,11 @@ def admin_panel(message):
 
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     keyboard.add(
-        types.InlineKeyboardButton("📋 Все заявки", callback_data="list_all"),
-        types.InlineKeyboardButton("⏳ Ожидающие", callback_data="list_pending"),
-        types.InlineKeyboardButton("✅ Принятые", callback_data="list_accepted"),
-        types.InlineKeyboardButton("❌ Отклонённые", callback_data="list_rejected")
+        types.InlineKeyboardButton("📋 Все заявки (модер)", callback_data="list_all"),
+        types.InlineKeyboardButton("⏳ Ожидающие (модер)", callback_data="list_pending"),
+        types.InlineKeyboardButton("✅ Принятые (модер)", callback_data="list_accepted"),
+        types.InlineKeyboardButton("❌ Отклонённые (модер)", callback_data="list_rejected"),
+        types.InlineKeyboardButton("👑 Админ-заявки", callback_data="list_admin_apps")
     )
     bot.send_message(message.chat.id, "🎛 Админ-панель FoggyLand", reply_markup=keyboard)
 
@@ -141,146 +214,236 @@ def callback_handler(call):
         bot.answer_callback_query(call.id, "⛔ Нет доступа.")
         return
 
-    applications = load_json(DATA_FILE, [])
+    # Модераторские заявки
+    if call.data in ("list_all", "list_pending", "list_accepted", "list_rejected"):
+        applications = load_json(DATA_FILE, [])
+        if call.data == "list_all":
+            show_list(call, applications, "mod")
+        elif call.data == "list_pending":
+            show_list(call, [a for a in applications if a["status"] == "pending"], "mod")
+        elif call.data == "list_accepted":
+            show_list(call, [a for a in applications if a["status"] == "accepted"], "mod")
+        elif call.data == "list_rejected":
+            show_list(call, [a for a in applications if a["status"] == "rejected"], "mod")
+        return
 
-    if call.data == "list_all":
-        show_list(call, applications)
-    elif call.data == "list_pending":
-        show_list(call, [a for a in applications if a["status"] == "pending"])
-    elif call.data == "list_accepted":
-        show_list(call, [a for a in applications if a["status"] == "accepted"])
-    elif call.data == "list_rejected":
-        show_list(call, [a for a in applications if a["status"] == "rejected"])
-    elif call.data.startswith("view_"):
+    if call.data.startswith("view_"):
         app_id = int(call.data.split("_")[1])
+        applications = load_json(DATA_FILE, [])
         app_data = next((a for a in applications if a["id"] == app_id), None)
         if app_data:
             show_detail(call, app_data)
-    elif call.data.startswith("accept_"):
+        return
+
+    if call.data.startswith("accept_"):
         app_id = int(call.data.split("_")[1])
+        applications = load_json(DATA_FILE, [])
         accept_app(call, app_id, applications)
-    elif call.data.startswith("reject_"):
+        return
+
+    if call.data.startswith("reject_"):
         app_id = int(call.data.split("_")[1])
+        applications = load_json(DATA_FILE, [])
         reject_app(call, app_id, applications)
-    elif call.data == "back_to_admin":
+        return
+
+    # Админские заявки
+    if call.data == "list_admin_apps":
+        admin_apps = load_json(ADMIN_APPS_FILE, [])
+        show_admin_list(call, admin_apps)
+        return
+
+    if call.data.startswith("admin_view_"):
+        app_id = int(call.data.split("_")[2])
+        admin_apps = load_json(ADMIN_APPS_FILE, [])
+        app_data = next((a for a in admin_apps if a["id"] == app_id), None)
+        if app_data:
+            show_admin_detail(call, app_data)
+        return
+
+    if call.data.startswith("admin_accept_"):
+        app_id = int(call.data.split("_")[2])
+        admin_apps = load_json(ADMIN_APPS_FILE, [])
+        accept_admin_app(call, app_id, admin_apps)
+        return
+
+    if call.data.startswith("admin_reject_"):
+        app_id = int(call.data.split("_")[2])
+        admin_apps = load_json(ADMIN_APPS_FILE, [])
+        reject_admin_app(call, app_id, admin_apps)
+        return
+
+    if call.data == "back_to_admin":
         keyboard = types.InlineKeyboardMarkup(row_width=1)
         keyboard.add(
-            types.InlineKeyboardButton("📋 Все заявки", callback_data="list_all"),
-            types.InlineKeyboardButton("⏳ Ожидающие", callback_data="list_pending"),
-            types.InlineKeyboardButton("✅ Принятые", callback_data="list_accepted"),
-            types.InlineKeyboardButton("❌ Отклонённые", callback_data="list_rejected")
+            types.InlineKeyboardButton("📋 Все заявки (модер)", callback_data="list_all"),
+            types.InlineKeyboardButton("⏳ Ожидающие (модер)", callback_data="list_pending"),
+            types.InlineKeyboardButton("✅ Принятые (модер)", callback_data="list_accepted"),
+            types.InlineKeyboardButton("❌ Отклонённые (модер)", callback_data="list_rejected"),
+            types.InlineKeyboardButton("👑 Админ-заявки", callback_data="list_admin_apps")
         )
         bot.edit_message_text("🎛 Админ-панель", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
-def show_list(call, apps):
+# ----- Общие функции отображения для модераторских заявок -----
+def show_list(call, apps, app_type="mod"):
     if not apps:
         bot.edit_message_text("📭 Заявок нет.", call.message.chat.id, call.message.message_id)
         return
-
     text = "📊 Заявки:\n\n"
     keyboard = types.InlineKeyboardMarkup(row_width=1)
-    for app_data in apps[:10]:
-        if app_data["status"] == "accepted":
+    for a in apps[:10]:
+        if a["status"] == "accepted":
             emoji = "✅"
-        elif app_data["status"] == "rejected":
+        elif a["status"] == "rejected":
             emoji = "❌"
         else:
             emoji = "⏳"
-        text += f"{emoji} #{app_data['id']} | {app_data['real_name']} | {app_data['minecraft_nick']}\n"
+        name = a.get("real_name", a.get("full_name", "—"))
+        nick = a.get("minecraft_nick", "")
+        text += f"{emoji} #{a['id']} | {name} | {nick}\n"
         keyboard.add(types.InlineKeyboardButton(
-            f"{emoji} #{app_data['id']} - {app_data['real_name']}",
-            callback_data=f"view_{app_data['id']}"
+            f"{emoji} #{a['id']} - {name}",
+            callback_data=f"view_{a['id']}"
         ))
     keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="back_to_admin"))
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
-def show_detail(call, app_data):
+def show_detail(call, app):
     status_text = "⏳ Ожидает"
-    if app_data["status"] == "accepted":
+    if app["status"] == "accepted":
         status_text = "✅ Принята"
-    elif app_data["status"] == "rejected":
+    elif app["status"] == "rejected":
         status_text = "❌ Отклонена"
 
     text = (
-        f"📝 Заявка #{app_data['id']}\n\n"
-        f"👤 Имя: {app_data['real_name']}\n"
-        f"⛏ Ник: {app_data['minecraft_nick']}\n"
-        f"📬 Telegram: {app_data.get('telegram_user', '-')}\n"
-        f"📅 Дата: {app_data.get('submitted_at', '-')[:10]}\n"
+        f"📝 Заявка #{app['id']}\n\n"
+        f"👤 Имя: {app.get('real_name', '—')}\n"
+        f"⛏ Ник: {app.get('minecraft_nick', '—')}\n"
+        f"📬 Telegram: {app.get('telegram_user', '—')}\n"
+        f"📅 Дата: {app.get('submitted_at', '—')[:10]}\n"
         f"📊 Статус: {status_text}\n"
-        f"🚫 Отношение к читу: {app_data.get('attitude_to_cheats', '-')}\n"
-        f"🛡 Опыт: {app_data.get('experience', '-')}\n"
-        f"💬 Мотивация: {app_data.get('motivation', '-')}"
+        f"🚫 Отношение к читу: {app.get('attitude_to_cheats', '—')}\n"
+        f"🛡 Опыт: {app.get('experience', '—')}\n"
+        f"💬 Мотивация: {app.get('motivation', '—')}"
     )
-
     keyboard = types.InlineKeyboardMarkup(row_width=2)
-    if app_data["status"] == "pending":
+    if app["status"] == "pending":
         keyboard.add(
-            types.InlineKeyboardButton("✅ ПРИНЯТЬ", callback_data=f"accept_{app_data['id']}"),
-            types.InlineKeyboardButton("❌ ОТКАЗАТЬ", callback_data=f"reject_{app_data['id']}")
+            types.InlineKeyboardButton("✅ ПРИНЯТЬ", callback_data=f"accept_{app['id']}"),
+            types.InlineKeyboardButton("❌ ОТКАЗАТЬ", callback_data=f"reject_{app['id']}")
         )
     keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="list_pending"))
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
 def accept_app(call, app_id, applications):
-    app_data = next((a for a in applications if a["id"] == app_id), None)
-    if not app_data or app_data["status"] != "pending":
+    app = next((a for a in applications if a["id"] == app_id), None)
+    if not app or app["status"] != "pending":
         bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id)
         return
-
-    app_data["status"] = "accepted"
+    app["status"] = "accepted"
     save_json(DATA_FILE, applications)
-
     try:
-        bot.send_message(app_data["chat_id"],
-                         f"Привет {app_data['real_name']}!\n"
-                         f"Твоя заявка на модератора была принята!\n"
-                         f"И твоего модератора уже выдали!\n"
-                         f"Ваш ник: {app_data['minecraft_nick']}")
-        bot.edit_message_text(f"✅ Заявка #{app_id} принята! Уведомление отправлено.",
-                              call.message.chat.id, call.message.message_id)
+        bot.send_message(app["chat_id"],
+                         f"Привет {app['real_name']}!\nТвоя заявка на модератора была принята!\nИ твоего модератора уже выдали!\nВаш ник: {app['minecraft_nick']}")
+        bot.edit_message_text(f"✅ Заявка #{app_id} принята! Уведомление отправлено.", call.message.chat.id, call.message.message_id)
     except Exception as e:
-        bot.edit_message_text(f"✅ Заявка #{app_id} принята!\n⚠️ Ошибка отправки: {e}",
-                              call.message.chat.id, call.message.message_id)
+        bot.edit_message_text(f"✅ Заявка #{app_id} принята!\n⚠️ Ошибка отправки: {e}", call.message.chat.id, call.message.message_id)
 
 def reject_app(call, app_id, applications):
-    app_data = next((a for a in applications if a["id"] == app_id), None)
-    if not app_data or app_data["status"] != "pending":
-        bot.edit_message_text("❌ Заявка не найдена или уже обработана.",
-                              call.message.chat.id, call.message.message_id)
+    app = next((a for a in applications if a["id"] == app_id), None)
+    if not app or app["status"] != "pending":
+        bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id)
         return
-
-    app_data["status"] = "rejected"
+    app["status"] = "rejected"
     save_json(DATA_FILE, applications)
-
     try:
-        bot.send_message(
-            app_data["chat_id"],
-            f"Привет {app_data['real_name']}! К сожалению твоя заявка не прошла проверку. "
-            f"Можешь отправить заявку повторно через 2-7 дней. Ваш ник: {app_data['minecraft_nick']}"
-        )
-        bot.edit_message_text(
-            f"❌ Заявка #{app_id} отклонена! Уведомление отправлено.",
-            call.message.chat.id,
-            call.message.message_id
-        )
+        bot.send_message(app["chat_id"],
+                         f"Привет {app['real_name']}! К сожалению твоя заявка не прошла проверку. Можешь отправить заявку повторно через 2-7 дней. Ваш ник: {app['minecraft_nick']}")
+        bot.edit_message_text(f"❌ Заявка #{app_id} отклонена! Уведомление отправлено.", call.message.chat.id, call.message.message_id)
     except Exception as e:
-        bot.edit_message_text(
-            f"❌ Заявка #{app_id} отклонена!\n⚠️ Ошибка отправки: {e}",
-            call.message.chat.id,
-            call.message.message_id
+        bot.edit_message_text(f"❌ Заявка #{app_id} отклонена!\n⚠️ Ошибка отправки: {e}", call.message.chat.id, call.message.message_id)
+
+# ----- Функции для админских заявок -----
+def show_admin_list(call, apps):
+    if not apps:
+        bot.edit_message_text("📭 Админ-заявок нет.", call.message.chat.id, call.message.message_id)
+        return
+    text = "👑 Заявки на администратора:\n\n"
+    keyboard = types.InlineKeyboardMarkup(row_width=1)
+    for a in apps[:10]:
+        if a["status"] == "accepted":
+            emoji = "✅"
+        elif a["status"] == "rejected":
+            emoji = "❌"
+        else:
+            emoji = "⏳"
+        text += f"{emoji} #{a['id']} | {a['full_name']} | {a['minecraft_nick']}\n"
+        keyboard.add(types.InlineKeyboardButton(
+            f"{emoji} #{a['id']} - {a['full_name']}",
+            callback_data=f"admin_view_{a['id']}"
+        ))
+    keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="back_to_admin"))
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+
+def show_admin_detail(call, app):
+    status_text = "⏳ Ожидает"
+    if app["status"] == "accepted":
+        status_text = "✅ Принята"
+    elif app["status"] == "rejected":
+        status_text = "❌ Отклонена"
+    text = (
+        f"👑 Заявка на админа #{app['id']}\n"
+        f"👤 {app['full_name']}\n"
+        f"⛏ Ник: {app['minecraft_nick']}\n"
+        f"📬 Telegram: @{app.get('telegram_user', '')}\n"
+        f"📊 Статус: {status_text}\n"
+        f"💬 Мотивация: {app.get('motivation', '—')}"
+    )
+    keyboard = types.InlineKeyboardMarkup(row_width=2)
+    if app["status"] == "pending":
+        keyboard.add(
+            types.InlineKeyboardButton("✅ Принять", callback_data=f"admin_accept_{app['id']}"),
+            types.InlineKeyboardButton("❌ Отклонить", callback_data=f"admin_reject_{app['id']}")
         )
+    keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="list_admin_apps"))
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+
+def accept_admin_app(call, app_id, apps):
+    app = next((a for a in apps if a["id"] == app_id), None)
+    if not app or app["status"] != "pending":
+        bot.edit_message_text("❌ Заявка не найдена.", call.message.chat.id, call.message.message_id)
+        return
+    app["status"] = "accepted"
+    save_json(ADMIN_APPS_FILE, apps)
+    try:
+        bot.send_message(app["chat_id"],
+                         f"Привет {app['full_name']}!\nТвоя заявка на администратора одобрена! Поздравляем!")
+        bot.edit_message_text(f"✅ Заявка #{app_id} одобрена.", call.message.chat.id, call.message.message_id)
+    except Exception as e:
+        bot.edit_message_text(f"⚠️ Ошибка отправки: {e}", call.message.chat.id, call.message.message_id)
+
+def reject_admin_app(call, app_id, apps):
+    app = next((a for a in apps if a["id"] == app_id), None)
+    if not app or app["status"] != "pending":
+        bot.edit_message_text("❌ Заявка не найдена.", call.message.chat.id, call.message.message_id)
+        return
+    app["status"] = "rejected"
+    save_json(ADMIN_APPS_FILE, apps)
+    try:
+        bot.send_message(app["chat_id"],
+                         f"Привет {app['full_name']}. К сожалению, твоя заявка на администратора не прошла. Ты можешь подать повторно через 2 недели.")
+        bot.edit_message_text(f"❌ Заявка #{app_id} отклонена.", call.message.chat.id, call.message.message_id)
+    except Exception as e:
+        bot.edit_message_text(f"⚠️ Ошибка отправки: {e}", call.message.chat.id, call.message.message_id)
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    # Удаляем старый вебхук
     try:
         bot.remove_webhook()
         print("🧹 Старый webhook удалён")
     except Exception as e:
         print(f"⚠️ Ошибка при удалении webhook: {e}")
 
-    # Устанавливаем вебхук для приёма команд от Telegram
     webhook_url = f"{RENDER_URL}/telegram"
     try:
         bot.set_webhook(url=webhook_url)
@@ -288,5 +451,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Ошибка установки webhook: {e}")
 
-    # Запуск Flask
     app.run(host="0.0.0.0", port=PORT)
