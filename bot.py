@@ -3,6 +3,7 @@ import json
 import uuid
 from datetime import datetime
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import telebot
 from telebot import types
 
@@ -11,11 +12,10 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise ValueError("TELEGRAM_TOKEN не установлен!")
 
-ADMIN_IDS = [5145474067]  # ❗ ЗАМЕНИ НА СВОЙ ID
+ADMIN_IDS = [5145474067]   # ❗ Свой Telegram ID (замени)
 DATA_FILE = "applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
-# URL твоего сервера на Render (подставь свой, если отличается)
 RENDER_URL = "https://moderfoggyland.onrender.com"
 
 # ========== ХРАНИЛИЩЕ ==========
@@ -33,13 +33,13 @@ def save_json(filename, data):
 
 # ========== FLASK ==========
 app = Flask(__name__)
+CORS(app)
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 @app.route("/")
 def home():
-    return "✅ Бот работает! Вебхуки активны."
+    return "✅ Бот работает!"
 
-# Маршрут для Formspree (приём заявок)
 @app.route("/webhook", methods=["POST"])
 def formspree_webhook():
     data = request.get_json(force=True) if request.is_json else request.form
@@ -57,6 +57,7 @@ def formspree_webhook():
     minecraft_nick = data.get("minecraft_nick", "")
     telegram_user = data.get("telegram", "")
     experience = data.get("experience", "")
+    motivation = data.get("motivation", "")
     attitude = data.get("attitude_to_cheats", "")
 
     applications = load_json(DATA_FILE, [])
@@ -69,33 +70,32 @@ def formspree_webhook():
         "telegram_user": telegram_user,
         "experience": experience,
         "motivation": motivation,
+        "attitude_to_cheats": attitude,
         "status": "pending",
         "submitted_at": datetime.now().isoformat()
-        "attitude_to_cheats": attitude,
     }
 
     applications.append(new_app)
     save_json(DATA_FILE, applications)
 
-    # Сообщение заявителю
+    # Отправляем заявителю
     try:
         bot.send_message(chat_id,
                          f"Привет {real_name}! Твоя заявка рассмотрится в течении недели. Ожидай.")
     except Exception as e:
         print(f"Ошибка отправки заявителю: {e}")
 
-    # Сообщение админам
+    # Отправляем админам
     for admin_id in ADMIN_IDS:
         try:
             bot.send_message(admin_id,
                              f"🆕 Новая заявка #{new_app['id']} от {real_name}\n"
                              f"Ник: {minecraft_nick}\nTG: @{telegram_user}")
-        except:
-            pass
+        except Exception as e:
+            print(f"Ошибка отправки админу: {e}")
 
     return jsonify({"status": "ok", "app_id": new_app["id"]})
 
-# Маршрут для Telegram (приём команд)
 @app.route("/telegram", methods=["POST"])
 def telegram_webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -103,8 +103,7 @@ def telegram_webhook():
         update = telebot.types.Update.de_json(json_string)
         bot.process_new_updates([update])
         return "OK"
-    else:
-        return "Bad request", 400
+    return "Bad request", 400
 
 # ========== ОБРАБОТЧИКИ КОМАНД ==========
 @bot.message_handler(commands=['start'])
@@ -190,7 +189,8 @@ def show_detail(call, app_data):
         f"⛏ Ник: {app_data['minecraft_nick']}\n"
         f"📬 Telegram: {app_data.get('telegram_user', '-')}\n"
         f"📅 Дата: {app_data.get('submitted_at', '-')[:10]}\n"
-        f"📊 Статус: {'✅ Принята' if app_data['status'] == 'accepted' else '⏳ Ожидает'}\n\n"
+        f"📊 Статус: {'✅ Принята' if app_data['status'] == 'accepted' else '⏳ Ожидает'}\n"
+        f"🚫 Отношение к читу: {app_data.get('attitude_to_cheats', '-')}\n"
         f"🛡 Опыт: {app_data.get('experience', '-')}\n"
         f"💬 Мотивация: {app_data.get('motivation', '-')}"
     )
@@ -224,14 +224,14 @@ def accept_app(call, app_id, applications):
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    # 1. Удаляем все прошлые вебхуки
+    # Удаляем старый вебхук
     try:
         bot.remove_webhook()
         print("🧹 Старый webhook удалён")
     except Exception as e:
-        print(f"⚠️ Не удалось удалить webhook: {e}")
+        print(f"⚠️ Ошибка при удалении webhook: {e}")
 
-    # 2. Ставим новый вебхук на /telegram
+    # Устанавливаем вебхук для приёма команд от Telegram
     webhook_url = f"{RENDER_URL}/telegram"
     try:
         bot.set_webhook(url=webhook_url)
@@ -239,5 +239,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Ошибка установки webhook: {e}")
 
-    # 3. Запуск Flask (без polling!)
+    # Запуск Flask
     app.run(host="0.0.0.0", port=PORT)
