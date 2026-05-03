@@ -12,7 +12,7 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise ValueError("TELEGRAM_TOKEN не установлен!")
 
-ADMIN_IDS = [5145474067]   # ❗ Свой Telegram ID (замени)
+ADMIN_IDS = [5145474067]   # ❗ Свой Telegram ID
 DATA_FILE = "applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
@@ -130,7 +130,8 @@ def admin_panel(message):
     keyboard.add(
         types.InlineKeyboardButton("📋 Все заявки", callback_data="list_all"),
         types.InlineKeyboardButton("⏳ Ожидающие", callback_data="list_pending"),
-        types.InlineKeyboardButton("✅ Принятые", callback_data="list_accepted")
+        types.InlineKeyboardButton("✅ Принятые", callback_data="list_accepted"),
+        types.InlineKeyboardButton("❌ Отклонённые", callback_data="list_rejected")
     )
     bot.send_message(message.chat.id, "🎛 Админ-панель FoggyLand", reply_markup=keyboard)
 
@@ -148,6 +149,8 @@ def callback_handler(call):
         show_list(call, [a for a in applications if a["status"] == "pending"])
     elif call.data == "list_accepted":
         show_list(call, [a for a in applications if a["status"] == "accepted"])
+    elif call.data == "list_rejected":
+        show_list(call, [a for a in applications if a["status"] == "rejected"])
     elif call.data.startswith("view_"):
         app_id = int(call.data.split("_")[1])
         app_data = next((a for a in applications if a["id"] == app_id), None)
@@ -156,12 +159,16 @@ def callback_handler(call):
     elif call.data.startswith("accept_"):
         app_id = int(call.data.split("_")[1])
         accept_app(call, app_id, applications)
+    elif call.data.startswith("reject_"):
+        app_id = int(call.data.split("_")[1])
+        reject_app(call, app_id, applications)
     elif call.data == "back_to_admin":
         keyboard = types.InlineKeyboardMarkup(row_width=1)
         keyboard.add(
             types.InlineKeyboardButton("📋 Все заявки", callback_data="list_all"),
             types.InlineKeyboardButton("⏳ Ожидающие", callback_data="list_pending"),
-            types.InlineKeyboardButton("✅ Принятые", callback_data="list_accepted")
+            types.InlineKeyboardButton("✅ Принятые", callback_data="list_accepted"),
+            types.InlineKeyboardButton("❌ Отклонённые", callback_data="list_rejected")
         )
         bot.edit_message_text("🎛 Админ-панель", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
@@ -173,7 +180,12 @@ def show_list(call, apps):
     text = "📊 Заявки:\n\n"
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     for app_data in apps[:10]:
-        emoji = "✅" if app_data["status"] == "accepted" else "⏳"
+        if app_data["status"] == "accepted":
+            emoji = "✅"
+        elif app_data["status"] == "rejected":
+            emoji = "❌"
+        else:
+            emoji = "⏳"
         text += f"{emoji} #{app_data['id']} | {app_data['real_name']} | {app_data['minecraft_nick']}\n"
         keyboard.add(types.InlineKeyboardButton(
             f"{emoji} #{app_data['id']} - {app_data['real_name']}",
@@ -183,21 +195,30 @@ def show_list(call, apps):
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
 def show_detail(call, app_data):
+    status_text = "⏳ Ожидает"
+    if app_data["status"] == "accepted":
+        status_text = "✅ Принята"
+    elif app_data["status"] == "rejected":
+        status_text = "❌ Отклонена"
+
     text = (
         f"📝 Заявка #{app_data['id']}\n\n"
         f"👤 Имя: {app_data['real_name']}\n"
         f"⛏ Ник: {app_data['minecraft_nick']}\n"
         f"📬 Telegram: {app_data.get('telegram_user', '-')}\n"
         f"📅 Дата: {app_data.get('submitted_at', '-')[:10]}\n"
-        f"📊 Статус: {'✅ Принята' if app_data['status'] == 'accepted' else '⏳ Ожидает'}\n"
+        f"📊 Статус: {status_text}\n"
         f"🚫 Отношение к читу: {app_data.get('attitude_to_cheats', '-')}\n"
         f"🛡 Опыт: {app_data.get('experience', '-')}\n"
         f"💬 Мотивация: {app_data.get('motivation', '-')}"
     )
 
-    keyboard = types.InlineKeyboardMarkup(row_width=1)
+    keyboard = types.InlineKeyboardMarkup(row_width=2)
     if app_data["status"] == "pending":
-        keyboard.add(types.InlineKeyboardButton("✅ ПРИНЯТЬ", callback_data=f"accept_{app_data['id']}"))
+        keyboard.add(
+            types.InlineKeyboardButton("✅ ПРИНЯТЬ", callback_data=f"accept_{app_data['id']}"),
+            types.InlineKeyboardButton("❌ ОТКАЗАТЬ", callback_data=f"reject_{app_data['id']}")
+        )
     keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="list_pending"))
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
@@ -221,6 +242,34 @@ def accept_app(call, app_id, applications):
     except Exception as e:
         bot.edit_message_text(f"✅ Заявка #{app_id} принята!\n⚠️ Ошибка отправки: {e}",
                               call.message.chat.id, call.message.message_id)
+
+def reject_app(call, app_id, applications):
+    app_data = next((a for a in applications if a["id"] == app_id), None)
+    if not app_data or app_data["status"] != "pending":
+        bot.edit_message_text("❌ Заявка не найдена или уже обработана.",
+                              call.message.chat.id, call.message.message_id)
+        return
+
+    app_data["status"] = "rejected"
+    save_json(DATA_FILE, applications)
+
+    try:
+        bot.send_message(
+            app_data["chat_id"],
+            f"Привет {app_data['real_name']}! К сожалению твоя заявка не прошла проверку. "
+            f"Можешь отправить заявку повторно через 2-7 дней. Ваш ник: {app_data['minecraft_nick']}"
+        )
+        bot.edit_message_text(
+            f"❌ Заявка #{app_id} отклонена! Уведомление отправлено.",
+            call.message.chat.id,
+            call.message.message_id
+        )
+    except Exception as e:
+        bot.edit_message_text(
+            f"❌ Заявка #{app_id} отклонена!\n⚠️ Ошибка отправки: {e}",
+            call.message.chat.id,
+            call.message.message_id
+        )
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
