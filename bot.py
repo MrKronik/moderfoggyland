@@ -57,7 +57,7 @@ def formspree_webhook():
     minecraft_nick = data.get("minecraft_nick", "")
     telegram_user = data.get("telegram", "")
     experience = data.get("experience", "")
-    motivation = data.get("motivation", "")
+    attitude = data.get("attitude_to_cheats", "")
 
     applications = load_json(DATA_FILE, [])
 
@@ -71,6 +71,7 @@ def formspree_webhook():
         "motivation": motivation,
         "status": "pending",
         "submitted_at": datetime.now().isoformat()
+        "attitude_to_cheats": attitude,
     }
 
     applications.append(new_app)
